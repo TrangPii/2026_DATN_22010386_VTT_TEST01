@@ -26,6 +26,7 @@ class Booking {
   final DateTime? cancelledAt;
 
   final BookingProvider? provider;
+  final BookingCustomer? customer;
   final BookingServiceInfo? service;
   final BookingReview? review;
 
@@ -50,6 +51,7 @@ class Booking {
     this.completedAt,
     this.cancelledAt,
     this.provider,
+    this.customer,
     this.service,
     this.review,
   });
@@ -95,6 +97,12 @@ class Booking {
             )
           : null,
 
+      customer: json['customer'] is Map
+          ? BookingCustomer.fromJson(
+              Map<String, dynamic>.from(json['customer'] as Map),
+            )
+          : null,
+
       service: json['service'] is Map
           ? BookingServiceInfo.fromJson(
               Map<String, dynamic>.from(json['service'] as Map),
@@ -131,6 +139,22 @@ class BookingProvider {
       id: json['id'] as int,
       name: json['name']?.toString() ?? '',
       businessName: json['business_name']?.toString(),
+    );
+  }
+}
+
+class BookingCustomer {
+  final int id;
+  final String name;
+  final String? phone;
+
+  const BookingCustomer({required this.id, required this.name, this.phone});
+
+  factory BookingCustomer.fromJson(Map<String, dynamic> json) {
+    return BookingCustomer(
+      id: json['id'] as int,
+      name: json['name']?.toString() ?? '',
+      phone: json['phone']?.toString(),
     );
   }
 }
