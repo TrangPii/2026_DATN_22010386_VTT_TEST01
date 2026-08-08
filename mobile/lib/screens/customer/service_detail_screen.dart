@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../models/service.dart';
+import '../../screens/customer/create_booking_screen.dart';
 
 class ServiceDetailScreen extends StatelessWidget {
   final Service service;
@@ -160,14 +161,23 @@ class ServiceDetailScreen extends StatelessWidget {
             SizedBox(
               height: 52,
               child: FilledButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Booking Form sẽ được làm ở bước tiếp theo.',
-                      ),
+                onPressed: () async {
+                  final created = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateBookingScreen(service: service),
                     ),
                   );
+
+                  if (created == true && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Bạn có thể xem đơn vừa tạo trong "Đơn của tôi".',
+                        ),
+                      ),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.calendar_month),
                 label: const Text('Đặt dịch vụ'),
