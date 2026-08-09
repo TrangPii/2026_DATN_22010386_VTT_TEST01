@@ -37,13 +37,17 @@ class _ProviderProfileTabState extends State<ProviderProfileTab> {
     try {
       final profile = await _profileService.getProfile();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _profile = profile;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _error = e.toString();
@@ -120,22 +124,37 @@ class _ProviderProfileTabState extends State<ProviderProfileTab> {
 
     if (_error != null || _profile == null) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            Text(_error ?? 'Không thể tải hồ sơ.', textAlign: TextAlign.center),
+              Text(
+                _error ?? 'Không thể tải hồ sơ.',
+                textAlign: TextAlign.center,
+              ),
 
-            const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-            OutlinedButton(
-              onPressed: _loadProfile,
-              child: const Text('Thử lại'),
-            ),
-          ],
+              OutlinedButton(
+                onPressed: _loadProfile,
+                child: const Text('Thử lại'),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Trong trường hợp Provider permission đã bị Admin thu hồi trong khi app vẫn đang ở Provider Mode
+              TextButton.icon(
+                onPressed: auth.switchToCustomerMode,
+                icon: const Icon(Icons.person_outline),
+                label: const Text('Quay lại chế độ Khách hàng'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -257,7 +276,7 @@ class _ProviderProfileTabState extends State<ProviderProfileTab> {
                   ),
                 ),
 
-                if (user?.phone != null) ...[
+                if (user?.phone?.isNotEmpty == true) ...[
                   const Divider(height: 1),
 
                   ListTile(
@@ -280,8 +299,20 @@ class _ProviderProfileTabState extends State<ProviderProfileTab> {
 
           const SizedBox(height: 12),
 
+          FilledButton.tonalIcon(
+            onPressed: auth.switchToCustomerMode,
+            icon: const Icon(Icons.swap_horiz),
+            label: const Text('Chuyển sang chế độ Khách hàng'),
+          ),
+
+          const SizedBox(height: 12),
+
           OutlinedButton.icon(
-            onPressed: auth.isLoading ? null : auth.logout,
+            onPressed: auth.isLoading
+                ? null
+                : () async {
+                    await auth.logout();
+                  },
             icon: const Icon(Icons.logout),
             label: const Text('Đăng xuất'),
           ),

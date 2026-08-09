@@ -27,12 +27,16 @@ class ApiClient {
     return headers;
   }
 
+  static Uri _uri(String endpoint) {
+    return Uri.parse('${ApiConstants.baseUrl}$endpoint');
+  }
+
   static Future<http.Response> get(
     String endpoint, {
     bool authenticated = false,
   }) async {
     return http.get(
-      Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+      _uri(endpoint),
       headers: await _headers(authenticated: authenticated),
     );
   }
@@ -43,7 +47,7 @@ class ApiClient {
     bool authenticated = false,
   }) async {
     return http.post(
-      Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+      _uri(endpoint),
       headers: await _headers(authenticated: authenticated),
       body: jsonEncode(body ?? {}),
     );
@@ -55,7 +59,7 @@ class ApiClient {
     bool authenticated = false,
   }) async {
     return http.put(
-      Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+      _uri(endpoint),
       headers: await _headers(authenticated: authenticated),
       body: jsonEncode(body ?? {}),
     );
@@ -67,9 +71,21 @@ class ApiClient {
     bool authenticated = false,
   }) async {
     return http.patch(
-      Uri.parse('${ApiConstants.baseUrl}$endpoint'),
+      _uri(endpoint),
       headers: await _headers(authenticated: authenticated),
       body: jsonEncode(body ?? {}),
+    );
+  }
+
+  static Future<http.Response> delete(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    bool authenticated = false,
+  }) async {
+    return http.delete(
+      _uri(endpoint),
+      headers: await _headers(authenticated: authenticated),
+      body: body != null ? jsonEncode(body) : null,
     );
   }
 }

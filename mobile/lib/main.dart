@@ -46,25 +46,10 @@ class AuthGate extends StatelessWidget {
       return const LoginScreen();
     }
 
-    if (user.role == 'PROVIDER') {
+    if (auth.isProviderMode) {
       return const ProviderHomeScreen();
     }
 
-    if (user.role == 'CUSTOMER') {
-      return const CustomerHomeScreen();
-    }
-
-    /*
-     * ADMIN sẽ sử dụng Web Back-office,
-     * không sử dụng Mobile App.
-     */
-    return Scaffold(
-      body: Center(
-        child: FilledButton(
-          onPressed: auth.logout,
-          child: const Text('Tài khoản này không sử dụng Mobile App'),
-        ),
-      ),
-    );
+    return const CustomerHomeScreen();
   }
 }

@@ -13,6 +13,7 @@ class ApiConstants {
   static const String bookings = '/bookings';
   static const String reviews = '/reviews';
 
+  static const String providerApplication = '/provider-application';
   static const String providerBookings = '/provider/bookings';
   static const String providerServices = '/provider/services';
   static const String providerProfile = '/provider/profile';
