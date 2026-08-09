@@ -23,9 +23,9 @@ class AdminDashboardController extends Controller
                     'CUSTOMER'
                 )->count(),
 
-                'providers' => User::where(
-                    'role',
-                    'PROVIDER'
+                'providers' => ProviderProfile::where(
+                    'verification_status',
+                    'APPROVED'
                 )->count(),
 
                 'locked' => User::where(

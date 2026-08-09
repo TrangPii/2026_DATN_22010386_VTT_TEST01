@@ -51,13 +51,6 @@
         </option>
 
         <option
-            value="PROVIDER"
-            @selected(request('role') === 'PROVIDER')
-        >
-            Provider
-        </option>
-
-        <option
             value="ADMIN"
             @selected(request('role') === 'ADMIN')
         >

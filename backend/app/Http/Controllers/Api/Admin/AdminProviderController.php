@@ -7,6 +7,7 @@ use App\Http\Resources\ProviderProfileResource;
 use App\Models\ProviderProfile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AdminProviderController extends Controller
 {
@@ -91,6 +92,7 @@ class AdminProviderController extends Controller
     public function reject(
         ProviderProfile $profile
     ): JsonResponse {
+        DB::transaction(function () use ($profile): void {
         $profile->update([
             'verification_status' => 'REJECTED',
             'verified_at' => null,
@@ -105,6 +107,7 @@ class AdminProviderController extends Controller
             ->update([
                 'status' => 'INACTIVE',
             ]);
+        });
 
         $profile->load('user');
 

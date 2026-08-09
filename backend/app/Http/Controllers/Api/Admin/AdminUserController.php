@@ -10,12 +10,13 @@ use Illuminate\Http\Request;
 
 class AdminUserController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
+    public function index(
+        Request $request
+    ): JsonResponse {
         $validated = $request->validate([
             'role' => [
                 'nullable',
-                'in:CUSTOMER,PROVIDER,ADMIN',
+                'in:CUSTOMER,ADMIN',
             ],
 
             'status' => [
@@ -56,7 +57,9 @@ class AdminUserController extends Controller
         }
 
         if (! empty($validated['search'])) {
-            $search = $validated['search'];
+            $search = trim(
+                $validated['search']
+            );
 
             $query->where(
                 function ($query) use ($search): void {
@@ -86,13 +89,15 @@ class AdminUserController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy danh sách người dùng thành công.',
 
             'data' => [
-                'users' => UserResource::collection(
-                    $users->items()
-                ),
+                'users' =>
+                    UserResource::collection(
+                        $users->items()
+                    ),
 
                 'pagination' => [
                     'current_page' =>
@@ -108,17 +113,22 @@ class AdminUserController extends Controller
         ]);
     }
 
-    public function show(User $user): JsonResponse
-    {
-        $user->load('providerProfile');
+    public function show(
+        User $user
+    ): JsonResponse {
+        $user->load(
+            'providerProfile'
+        );
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy thông tin người dùng thành công.',
 
             'data' => [
-                'user' => new UserResource($user),
+                'user' =>
+                    new UserResource($user),
             ],
         ]);
     }
@@ -137,29 +147,53 @@ class AdminUserController extends Controller
         if ($user->role === 'ADMIN') {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Không thể thay đổi trạng thái tài khoản quản trị.',
             ], 422);
         }
 
+        if (
+            (int) $user->id ===
+            (int) $request->user()->id
+        ) {
+            return response()->json([
+                'success' => false,
+
+                'message' =>
+                    'Bạn không thể thay đổi trạng thái tài khoản đang đăng nhập.',
+            ], 422);
+        }
+
         $user->update([
-            'status' => $validated['status'],
+            'status' =>
+                $validated['status'],
         ]);
 
-        /*
-         * Khi khóa user, vô hiệu hóa mọi Sanctum token.
-         */
-        if ($validated['status'] === 'LOCKED') {
+        if (
+            $validated['status']
+                === 'LOCKED'
+        ) {
+
             $user->tokens()->delete();
         }
 
+        $user->loadMissing(
+            'providerProfile'
+        );
+
         return response()->json([
             'success' => true,
+
             'message' =>
-                'Cập nhật trạng thái tài khoản thành công.',
+                $validated['status']
+                    === 'LOCKED'
+                    ? 'Đã khóa tài khoản.'
+                    : 'Đã mở khóa tài khoản.',
 
             'data' => [
-                'user' => new UserResource($user),
+                'user' =>
+                    new UserResource($user),
             ],
         ]);
     }

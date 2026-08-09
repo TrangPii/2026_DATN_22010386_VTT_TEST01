@@ -10,8 +10,9 @@ use Illuminate\View\View;
 
 class UserController extends Controller
 {
-    public function index(Request $request): View
-    {
+    public function index(
+        Request $request
+    ): View {
         $validated = $request->validate([
             'search' => [
                 'nullable',
@@ -21,7 +22,7 @@ class UserController extends Controller
 
             'role' => [
                 'nullable',
-                'in:CUSTOMER,PROVIDER,ADMIN',
+                'in:CUSTOMER,ADMIN',
             ],
 
             'status' => [
@@ -35,26 +36,30 @@ class UserController extends Controller
             ->latest();
 
         if (! empty($validated['search'])) {
-            $search = trim($validated['search']);
+            $search = trim(
+                $validated['search']
+            );
 
-            $query->where(function ($query) use ($search) {
-                $query
-                    ->where(
-                        'name',
-                        'like',
-                        "%{$search}%"
-                    )
-                    ->orWhere(
-                        'email',
-                        'like',
-                        "%{$search}%"
-                    )
-                    ->orWhere(
-                        'phone',
-                        'like',
-                        "%{$search}%"
-                    );
-            });
+            $query->where(
+                function ($query) use ($search): void {
+                    $query
+                        ->where(
+                            'name',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'email',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'phone',
+                            'like',
+                            "%{$search}%"
+                        );
+                }
+            );
         }
 
         if (! empty($validated['role'])) {
@@ -81,8 +86,9 @@ class UserController extends Controller
         );
     }
 
-    public function show(User $user): View
-    {
+    public function show(
+        User $user
+    ): View {
         $user->load([
             'providerProfile',
             'services',
@@ -107,10 +113,6 @@ class UserController extends Controller
             ],
         ]);
 
-        /*
-         * Không cho Admin thay đổi trạng thái
-         * của bất kỳ tài khoản ADMIN nào.
-         */
         if ($user->role === 'ADMIN') {
             return back()->with(
                 'error',
@@ -118,25 +120,20 @@ class UserController extends Controller
             );
         }
 
-        /*
-         * Bảo vệ bổ sung:
-         * Admin hiện tại cũng không thể tự khóa chính mình.
-         */
-        if ($user->id === $request->user()->id) {
+        if (
+            (int) $user->id ===
+            (int) $request->user()->id
+        ) {
             return back()->with(
                 'error',
                 'Bạn không thể khóa tài khoản đang đăng nhập.'
             );
         }
 
-        $user->status = $validated['status'];
-        $user->save();
+        $user->update([
+            'status' => $validated['status'],
+        ]);
 
-        /*
-         * Khi khóa user, revoke toàn bộ Sanctum token.
-         * Như vậy Flutter session hiện tại không tiếp tục
-         * sử dụng API bằng token cũ.
-         */
         if ($validated['status'] === 'LOCKED') {
             $user->tokens()->delete();
         }

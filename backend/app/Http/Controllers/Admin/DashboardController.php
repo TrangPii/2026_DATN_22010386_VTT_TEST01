@@ -22,9 +22,9 @@ class DashboardController extends Controller
                 'CUSTOMER'
             )->count(),
 
-            'providers' => User::where(
-                'role',
-                'PROVIDER'
+            'providers' => ProviderProfile::where(
+                'verification_status',
+                'APPROVED'
             )->count(),
 
             'pending_providers' =>

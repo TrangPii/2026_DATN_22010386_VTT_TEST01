@@ -65,11 +65,6 @@ class AuthController extends Controller
                 }
             );
 
-            /*
-             * User mới chắc chắn chưa có provider profile,
-             * nhưng load relation để UserResource có response
-             * thống nhất với login() và me().
-             */
             $result['user']->loadMissing(
                 'providerProfile'
             );
@@ -148,21 +143,10 @@ class AuthController extends Controller
             'last_login_at' => now(),
         ])->save();
 
-        /*
-         * Bắt buộc load providerProfile trước khi
-         * UserResource xác định provider_status và
-         * can_use_provider_mode.
-         */
         $user->loadMissing(
             'providerProfile'
         );
 
-        /*
-         * ADMIN vẫn có token ability riêng.
-         *
-         * User Mobile thông thường dùng ability "mobile".
-         * Provider permission KHÔNG nằm trong token.
-         */
         $abilities = $user->role === 'ADMIN'
             ? ['admin']
             : ['mobile'];

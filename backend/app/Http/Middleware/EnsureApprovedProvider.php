@@ -14,20 +14,30 @@ class EnsureApprovedProvider
     ): Response {
         $user = $request->user();
 
-        if (! $user || $user->status !== 'ACTIVE') {
+        if ($user === null) {
             return response()->json([
+                'success' => false,
+                'message' => 'Bạn chưa đăng nhập.',
+            ], 401);
+        }
+
+        if ($user->status !== 'ACTIVE') {
+            return response()->json([
+                'success' => false,
                 'message' => 'Tài khoản không khả dụng.',
             ], 403);
         }
 
-        $profile = $user->providerProfile;
+        $user->loadMissing('providerProfile');
 
         if (
-            ! $profile ||
-            $profile->verification_status !== 'APPROVED'
+            $user->providerProfile === null ||
+            $user->providerProfile->verification_status !== 'APPROVED'
         ) {
             return response()->json([
-                'message' => 'Bạn chưa được cấp quyền nhà cung cấp.',
+                'success' => false,
+                'message' =>
+                    'Bạn chưa được cấp quyền Nhà cung cấp.',
             ], 403);
         }
 
