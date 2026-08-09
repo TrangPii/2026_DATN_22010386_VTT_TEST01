@@ -15,8 +15,6 @@ class ProviderBookingController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureProvider($request);
-
         $validated = $request->validate([
             'status' => [
                 'nullable',
@@ -229,23 +227,13 @@ class ProviderBookingController extends Controller
         );
     }
 
-    private function ensureProvider(
-        Request $request
-    ): void {
-        if ($request->user()->role !== 'PROVIDER') {
-            abort(403, 'Bạn không có quyền truy cập.');
-        }
-    }
-
     private function ensureProviderOwnsBooking(
         Request $request,
         Booking $booking
     ): void {
-        $this->ensureProvider($request);
-
         if (
-            $booking->provider_id !==
-            $request->user()->id
+            (int) $booking->provider_id !==
+            (int) $request->user()->id
         ) {
             abort(
                 403,

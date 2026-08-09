@@ -17,8 +17,6 @@ class ProviderServiceController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->ensureProvider($request);
-
         $validated = $request->validate([
             'status' => [
                 'nullable',
@@ -46,10 +44,12 @@ class ProviderServiceController extends Controller
             ],
         ]);
 
+        $provider = $request->user();
+
         $query = Service::query()
             ->where(
                 'provider_id',
-                $request->user()->id
+                $provider->id
             )
             ->with([
                 'category',
@@ -72,7 +72,9 @@ class ProviderServiceController extends Controller
         }
 
         if (! empty($validated['search'])) {
-            $search = $validated['search'];
+            $search = trim(
+                $validated['search']
+            );
 
             $query->where(
                 function ($query) use ($search): void {
@@ -97,6 +99,7 @@ class ProviderServiceController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy danh sách dịch vụ của nhà cung cấp thành công.',
 
@@ -139,6 +142,7 @@ class ProviderServiceController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy thông tin dịch vụ thành công.',
 
@@ -149,32 +153,22 @@ class ProviderServiceController extends Controller
         ]);
     }
 
+    // Tạo service mới
     public function store(
         StoreServiceRequest $request
     ): JsonResponse {
         $validated = $request->validated();
-
         $provider = $request->user();
 
-        if (
-            $provider->providerProfile === null ||
-            $provider
-                ->providerProfile
-                ->verification_status !== 'APPROVED'
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' =>
-                    'Nhà cung cấp chưa được xác minh.',
-            ], 403);
-        }
-
         $category = ServiceCategory::query()
-            ->findOrFail($validated['category_id']);
+            ->findOrFail(
+                $validated['category_id']
+            );
 
         if ($category->status !== 'ACTIVE') {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Danh mục dịch vụ hiện không hoạt động.',
             ], 422);
@@ -226,6 +220,7 @@ class ProviderServiceController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Tạo dịch vụ thành công.',
 
@@ -236,6 +231,7 @@ class ProviderServiceController extends Controller
         ], 201);
     }
 
+    // Cập nhật service
     public function update(
         UpdateServiceRequest $request,
         Service $service
@@ -256,6 +252,7 @@ class ProviderServiceController extends Controller
             if ($category->status !== 'ACTIVE') {
                 return response()->json([
                     'success' => false,
+
                     'message' =>
                         'Danh mục dịch vụ hiện không hoạt động.',
                 ], 422);
@@ -280,6 +277,7 @@ class ProviderServiceController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Cập nhật dịch vụ thành công.',
 
@@ -290,6 +288,7 @@ class ProviderServiceController extends Controller
         ]);
     }
 
+    // ACTIVE / INACTIVE service
     public function updateStatus(
         UpdateServiceStatusRequest $request,
         Service $service
@@ -311,6 +310,7 @@ class ProviderServiceController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Cập nhật trạng thái dịch vụ thành công.',
 
@@ -321,26 +321,15 @@ class ProviderServiceController extends Controller
         ]);
     }
 
-    private function ensureProvider(
-        Request $request
-    ): void {
-        if ($request->user()->role !== 'PROVIDER') {
-            abort(
-                403,
-                'Bạn không có quyền truy cập.'
-            );
-        }
-    }
-
     private function ensureOwnsService(
         Request $request,
         Service $service
     ): void {
-        $this->ensureProvider($request);
+        $user = $request->user();
 
         if (
-            $service->provider_id !==
-            $request->user()->id
+            (int) $service->provider_id !==
+            (int) $user->id
         ) {
             abort(
                 403,
@@ -349,6 +338,7 @@ class ProviderServiceController extends Controller
         }
     }
 
+    // slug duy nhất trong phạm vi một Provider
     private function generateUniqueSlug(
         int $providerId,
         string $name,

@@ -81,7 +81,7 @@ class DemoDataSeeder extends Seeder
                     'name' => 'Lê Văn Hùng',
                     'phone' => '0900000004',
                     'password' => $password,
-                    'role' => 'PROVIDER',
+                    'role' => 'CUSTOMER',
                     'status' => 'ACTIVE',
                     'email_verified_at' => now(),
                 ]
@@ -93,7 +93,7 @@ class DemoDataSeeder extends Seeder
                     'name' => 'Phạm Quốc Bảo',
                     'phone' => '0900000005',
                     'password' => $password,
-                    'role' => 'PROVIDER',
+                    'role' => 'CUSTOMER',
                     'status' => 'ACTIVE',
                     'email_verified_at' => now(),
                 ]
@@ -105,7 +105,7 @@ class DemoDataSeeder extends Seeder
                     'name' => 'Đỗ Ngọc Lan',
                     'phone' => '0900000006',
                     'password' => $password,
-                    'role' => 'PROVIDER',
+                    'role' => 'CUSTOMER',
                     'status' => 'ACTIVE',
                     'email_verified_at' => now(),
                 ]

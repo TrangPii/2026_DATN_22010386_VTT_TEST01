@@ -11,17 +11,12 @@ use Illuminate\Http\Request;
 
 class ProviderProfileController extends Controller
 {
+    //  Lấy hồ sơ Provider của user đang đăng nhập
     public function me(Request $request): JsonResponse
     {
-        if ($request->user()->role !== 'PROVIDER') {
-            abort(
-                403,
-                'Bạn không có quyền truy cập.'
-            );
-        }
+        $user = $request->user();
 
-        $profile = $request
-            ->user()
+        $profile = $user
             ->providerProfile()
             ->with('user')
             ->first();
@@ -36,6 +31,7 @@ class ProviderProfileController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy hồ sơ nhà cung cấp thành công.',
 
@@ -46,16 +42,18 @@ class ProviderProfileController extends Controller
         ]);
     }
 
+    // Cập nhật hồ sơ Provider
     public function update(
         UpdateProviderProfileRequest $request
     ): JsonResponse {
-        $provider = $request->user();
+        $user = $request->user();
 
-        $profile = $provider->providerProfile;
+        $profile = $user->providerProfile;
 
         if ($profile === null) {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Hồ sơ nhà cung cấp chưa tồn tại.',
             ], 404);
@@ -69,6 +67,7 @@ class ProviderProfileController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Cập nhật hồ sơ nhà cung cấp thành công.',
 
@@ -79,43 +78,52 @@ class ProviderProfileController extends Controller
         ]);
     }
 
+    /**
+     * Public API: Lấy thông tin Provider để Customer xem. Chỉ hiển thị khi:
+     * - account ACTIVE
+     * - có providerProfile
+     * - verification_status = APPROVED
+     */
     public function show(
         User $provider
     ): JsonResponse {
-        if (
-            $provider->role !== 'PROVIDER' ||
-            $provider->status !== 'ACTIVE'
-        ) {
-            abort(404);
-        }
+        $provider->loadMissing(
+            'providerProfile'
+        );
 
-        $profile = $provider
-            ->providerProfile()
-            ->with('user')
-            ->first();
+        $profile = $provider->providerProfile;
 
         if (
+            $provider->status !== 'ACTIVE' ||
             $profile === null ||
             $profile->verification_status !== 'APPROVED'
         ) {
             abort(404);
         }
 
+        $profile->loadMissing('user');
+
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy thông tin nhà cung cấp thành công.',
 
             'data' => [
                 'provider' => [
-                    'id' => $provider->id,
+                    'id' =>
+                        $provider->id,
 
-                    'name' => $provider->name,
+                    'name' =>
+                        $provider->name,
 
-                    'avatar' => $provider->avatar,
+                    'avatar' =>
+                        $provider->avatar,
 
                     'profile' =>
-                        new ProviderProfileResource($profile),
+                        new ProviderProfileResource(
+                            $profile
+                        ),
                 ],
             ],
         ]);

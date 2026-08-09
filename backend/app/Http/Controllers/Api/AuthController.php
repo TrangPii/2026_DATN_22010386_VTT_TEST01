@@ -17,42 +17,75 @@ use Throwable;
 class AuthController extends Controller
 {
     /**
-     * Đăng ký tài khoản khách hàng.
+     * Đăng ký tài khoản người dùng.
+     *
+     * Mọi tài khoản đăng ký từ Mobile App đều bắt đầu
+     * với quyền CUSTOMER.
+     *
+     * Quyền Provider được cấp bổ sung sau khi:
+     * - user gửi provider application;
+     * - Admin approve provider profile.
      */
-    public function register(RegisterRequest $request): JsonResponse
-    {
+    public function register(
+        RegisterRequest $request
+    ): JsonResponse {
         $validated = $request->validated();
 
         try {
-            $result = DB::transaction(function () use ($validated): array {
-                $user = User::create([
-                    'name' => $validated['name'],
-                    'email' => $validated['email'],
-                    'phone' => $validated['phone'],
-                    'password' => $validated['password'],
-                    'role' => 'CUSTOMER',
-                    'status' => 'ACTIVE',
-                ]);
+            $result = DB::transaction(
+                function () use ($validated): array {
+                    $user = User::create([
+                        'name' => $validated['name'],
+                        'email' => $validated['email'],
+                        'phone' => $validated['phone'],
+                        'password' => $validated['password'],
+                        'role' => 'CUSTOMER',
+                        'status' => 'ACTIVE',
+                    ]);
 
-                $token = $user
-                    ->createToken(
-                        $validated['device_name'] ?? 'mobile-app',
-                        ['customer']
-                    )
-                    ->plainTextToken;
+                    /*
+                     * Token không còn quyết định user có phải
+                     * Provider hay không.
+                     *
+                     * Provider authorization sẽ được kiểm tra
+                     * bởi provider.approved middleware.
+                     */
+                    $token = $user
+                        ->createToken(
+                            $validated['device_name']
+                                ?? 'mobile-app',
+                            ['mobile']
+                        )
+                        ->plainTextToken;
 
-                return [
-                    'user' => $user,
-                    'token' => $token,
-                ];
-            });
+                    return [
+                        'user' => $user,
+                        'token' => $token,
+                    ];
+                }
+            );
+
+            /*
+             * User mới chắc chắn chưa có provider profile,
+             * nhưng load relation để UserResource có response
+             * thống nhất với login() và me().
+             */
+            $result['user']->loadMissing(
+                'providerProfile'
+            );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Đăng ký tài khoản thành công.',
+                'message' =>
+                    'Đăng ký tài khoản thành công.',
+
                 'data' => [
-                    'user' => new UserResource($result['user']),
+                    'user' => new UserResource(
+                        $result['user']
+                    ),
+
                     'token' => $result['token'],
+
                     'token_type' => 'Bearer',
                 ],
             ], 201);
@@ -61,7 +94,8 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Không thể đăng ký tài khoản.',
+                'message' =>
+                    'Không thể đăng ký tài khoản.',
             ], 500);
         }
     }
@@ -69,17 +103,24 @@ class AuthController extends Controller
     /**
      * Đăng nhập và phát hành token Sanctum.
      */
-    public function login(LoginRequest $request): JsonResponse
-    {
+    public function login(
+        LoginRequest $request
+    ): JsonResponse {
         $validated = $request->validated();
 
         $user = User::query()
-            ->where('email', $validated['email'])
+            ->where(
+                'email',
+                $validated['email']
+            )
             ->first();
 
         if (
             $user === null ||
-            ! Hash::check($validated['password'], $user->password)
+            ! Hash::check(
+                $validated['password'],
+                $user->password
+            )
         ) {
             throw ValidationException::withMessages([
                 'email' => [
@@ -91,7 +132,10 @@ class AuthController extends Controller
         if ($user->status !== 'ACTIVE') {
             return response()->json([
                 'success' => false,
-                'message' => 'Tài khoản đang bị khóa.',
+
+                'message' =>
+                    'Tài khoản đang bị khóa.',
+
                 'errors' => [
                     'account' => [
                         'Vui lòng liên hệ quản trị viên để được hỗ trợ.',
@@ -104,17 +148,29 @@ class AuthController extends Controller
             'last_login_at' => now(),
         ])->save();
 
-        $user->loadMissing('providerProfile');
+        /*
+         * Bắt buộc load providerProfile trước khi
+         * UserResource xác định provider_status và
+         * can_use_provider_mode.
+         */
+        $user->loadMissing(
+            'providerProfile'
+        );
 
-        $abilities = match ($user->role) {
-            'ADMIN' => ['admin'],
-            'PROVIDER' => ['provider'],
-            default => ['customer'],
-        };
+        /*
+         * ADMIN vẫn có token ability riêng.
+         *
+         * User Mobile thông thường dùng ability "mobile".
+         * Provider permission KHÔNG nằm trong token.
+         */
+        $abilities = $user->role === 'ADMIN'
+            ? ['admin']
+            : ['mobile'];
 
         $token = $user
             ->createToken(
-                $validated['device_name'] ?? 'mobile-app',
+                $validated['device_name']
+                    ?? 'mobile-app',
                 $abilities
             )
             ->plainTextToken;
@@ -122,9 +178,12 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Đăng nhập thành công.',
+
             'data' => [
                 'user' => new UserResource($user),
+
                 'token' => $token,
+
                 'token_type' => 'Bearer',
             ],
         ]);
@@ -133,15 +192,21 @@ class AuthController extends Controller
     /**
      * Lấy tài khoản đang đăng nhập.
      */
-    public function me(Request $request): JsonResponse
-    {
+    public function me(
+        Request $request
+    ): JsonResponse {
         $user = $request->user();
 
-        $user->loadMissing('providerProfile');
+        $user->loadMissing(
+            'providerProfile'
+        );
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy thông tin tài khoản thành công.',
+
+            'message' =>
+                'Lấy thông tin tài khoản thành công.',
+
             'data' => [
                 'user' => new UserResource($user),
             ],
@@ -151,9 +216,12 @@ class AuthController extends Controller
     /**
      * Đăng xuất thiết bị hiện tại.
      */
-    public function logout(Request $request): JsonResponse
-    {
-        $currentToken = $request->user()->currentAccessToken();
+    public function logout(
+        Request $request
+    ): JsonResponse {
+        $currentToken = $request
+            ->user()
+            ->currentAccessToken();
 
         if ($currentToken !== null) {
             $currentToken->delete();
@@ -169,13 +237,20 @@ class AuthController extends Controller
     /**
      * Đăng xuất khỏi tất cả thiết bị.
      */
-    public function logoutAll(Request $request): JsonResponse
-    {
-        $request->user()->tokens()->delete();
+    public function logoutAll(
+        Request $request
+    ): JsonResponse {
+        $request
+            ->user()
+            ->tokens()
+            ->delete();
 
         return response()->json([
             'success' => true,
-            'message' => 'Đã đăng xuất khỏi tất cả thiết bị.',
+
+            'message' =>
+                'Đã đăng xuất khỏi tất cả thiết bị.',
+
             'data' => null,
         ]);
     }

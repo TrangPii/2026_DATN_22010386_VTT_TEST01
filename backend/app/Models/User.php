@@ -41,6 +41,12 @@ class User extends Authenticatable
         ];
     }
 
+    public function canUseProviderMode(): bool
+    {
+        return $this->providerProfile !== null
+            && $this->providerProfile->verification_status === 'APPROVED';
+    }   
+
     public function providerProfile(): HasOne
     {
         return $this->hasOne(ProviderProfile::class);

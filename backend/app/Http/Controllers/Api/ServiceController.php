@@ -53,19 +53,41 @@ class ServiceController extends Controller
         ]);
 
         $query = Service::query()
-            ->where('status', 'ACTIVE')
+            ->where(
+                'status',
+                'ACTIVE'
+            )
+
             ->whereHas(
                 'category',
-                fn ($query) =>
-                    $query->where('status', 'ACTIVE')
+                function ($query): void {
+                    $query->where(
+                        'status',
+                        'ACTIVE'
+                    );
+                }
             )
+
             ->whereHas(
                 'provider',
-                fn ($query) =>
+                function ($query): void {
                     $query
-                        ->where('role', 'PROVIDER')
-                        ->where('status', 'ACTIVE')
+                        ->where(
+                            'status',
+                            'ACTIVE'
+                        )
+                        ->whereHas(
+                            'providerProfile',
+                            function ($profileQuery): void {
+                                $profileQuery->where(
+                                    'verification_status',
+                                    'APPROVED'
+                                );
+                            }
+                        );
+                }
             )
+
             ->with([
                 'category',
                 'provider.providerProfile',
@@ -86,17 +108,25 @@ class ServiceController extends Controller
         }
 
         if (! empty($validated['search'])) {
-            $search = $validated['search'];
+            $search = trim(
+                $validated['search']
+            );
 
-            $query->where(function ($query) use ($search): void {
-                $query
-                    ->where('name', 'like', "%{$search}%")
-                    ->orWhere(
-                        'description',
-                        'like',
-                        "%{$search}%"
-                    );
-            });
+            $query->where(
+                function ($query) use ($search): void {
+                    $query
+                        ->where(
+                            'name',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'description',
+                            'like',
+                            "%{$search}%"
+                        );
+                }
+            );
         }
 
         if (isset($validated['min_price'])) {
@@ -117,11 +147,16 @@ class ServiceController extends Controller
 
         $services = $query
             ->latest()
-            ->paginate($validated['per_page'] ?? 10);
+            ->paginate(
+                $validated['per_page'] ?? 10
+            );
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy danh sách dịch vụ thành công.',
+
+            'message' =>
+                'Lấy danh sách dịch vụ thành công.',
+
             'data' => [
                 'services' =>
                     ServiceResource::collection(
@@ -145,8 +180,9 @@ class ServiceController extends Controller
         ]);
     }
 
-    public function show(Service $service): JsonResponse
-    {
+    public function show(
+        Service $service
+    ): JsonResponse {
         if ($service->status !== 'ACTIVE') {
             abort(404);
         }
@@ -157,17 +193,33 @@ class ServiceController extends Controller
         ]);
 
         if (
+            $service->category === null ||
+            $service->provider === null
+        ) {
+            abort(404);
+        }
+
+        $providerProfile =
+            $service->provider->providerProfile;
+        if (
             $service->category->status !== 'ACTIVE' ||
-            $service->provider->status !== 'ACTIVE'
+            $service->provider->status !== 'ACTIVE' ||
+            $providerProfile === null ||
+            $providerProfile
+                ->verification_status !== 'APPROVED'
         ) {
             abort(404);
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy thông tin dịch vụ thành công.',
+
+            'message' =>
+                'Lấy thông tin dịch vụ thành công.',
+
             'data' => [
-                'service' => new ServiceResource($service),
+                'service' =>
+                    new ServiceResource($service),
             ],
         ]);
     }

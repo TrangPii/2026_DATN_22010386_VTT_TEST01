@@ -102,13 +102,17 @@ class BookingController extends Controller
         }
 
         if (
-            $service->provider->role !== 'PROVIDER' ||
-            $service->provider->status !== 'ACTIVE'
+            $service->status !== 'ACTIVE' ||
+            $service->provider === null ||
+            $service->provider->status !== 'ACTIVE' ||
+            $service->provider->providerProfile === null ||
+            $service->provider
+                ->providerProfile
+                ->verification_status !== 'APPROVED'
         ) {
             return response()->json([
-                'success' => false,
-                'message' =>
-                    'Nhà cung cấp hiện không khả dụng.',
+            'success' => false,
+            'message' => 'Dịch vụ hiện không khả dụng.',
             ], 422);
         }
 
@@ -125,12 +129,19 @@ class BookingController extends Controller
             ], 422);
         }
 
+        if (
+            (int) $service->provider_id ===
+            (int) $request->user()->id
+        ) {
+            return response()->json([
+                'success' => false,
+                'message' =>
+                    'Bạn không thể đặt dịch vụ của chính mình.',
+            ], 422);
+        }
+
         $quantity = $validated['quantity'] ?? 1;
 
-        /*
-         * Không nhận giá từ client.
-         * Giá luôn lấy trực tiếp từ database.
-         */
         $unitPrice = $service->price;
         $totalAmount = bcmul(
             (string) $unitPrice,

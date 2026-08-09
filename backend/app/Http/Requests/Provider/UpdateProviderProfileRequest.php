@@ -8,7 +8,7 @@ class UpdateProviderProfileRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'PROVIDER';
+        return true;
     }
 
     public function rules(): array
