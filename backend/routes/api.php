@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\ProviderBookingController;
 use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\ProviderApplicationController;
 use App\Http\Controllers\Api\ProviderServiceController;
 use App\Http\Controllers\Api\ProviderProfileController;
 use App\Http\Controllers\Api\Admin\AdminBookingController;
@@ -44,7 +45,7 @@ Route::prefix('auth')->group(function (): void {
     });
 });
 
-// Categories
+// Public categories
 Route::get(
     '/categories',
     [ServiceCategoryController::class, 'index']
@@ -60,7 +61,7 @@ Route::get(
     [ServiceCategoryController::class, 'services']
 );
 
-// Services
+// Public services
 Route::get(
     '/services',
     [ServiceController::class, 'index']
@@ -71,7 +72,7 @@ Route::get(
     [ServiceController::class, 'show']
 );
 
-// Booking
+// Customer Booking
 Route::middleware('auth:sanctum')->group(
     function (): void {
 
@@ -94,63 +95,10 @@ Route::middleware('auth:sanctum')->group(
             '/bookings/{booking}/cancel',
             [BookingController::class, 'cancel']
         );
-
-        Route::prefix('provider')->group(
-            function (): void {
-
-                Route::get(
-                    '/bookings',
-                    [
-                        ProviderBookingController::class,
-                        'index',
-                    ]
-                );
-
-                Route::get(
-                    '/bookings/{booking}',
-                    [
-                        ProviderBookingController::class,
-                        'show',
-                    ]
-                );
-
-                Route::post(
-                    '/bookings/{booking}/accept',
-                    [
-                        ProviderBookingController::class,
-                        'accept',
-                    ]
-                );
-
-                Route::post(
-                    '/bookings/{booking}/reject',
-                    [
-                        ProviderBookingController::class,
-                        'reject',
-                    ]
-                );
-
-                Route::post(
-                    '/bookings/{booking}/start',
-                    [
-                        ProviderBookingController::class,
-                        'start',
-                    ]
-                );
-
-                Route::post(
-                    '/bookings/{booking}/complete',
-                    [
-                        ProviderBookingController::class,
-                        'complete',
-                    ]
-                );
-            }
-        );
     }
 );
 
-//Review
+// Public review
 Route::middleware('auth:sanctum')->group(
     function (): void {
         Route::post(
@@ -165,29 +113,110 @@ Route::get(
     [ReviewController::class, 'providerReviews']
 );
 
-//Provider Service Management 
+// Provider application
 Route::middleware('auth:sanctum')
+    ->group(function () {
+
+        Route::get(
+            '/provider-application',
+            [ProviderApplicationController::class, 'show']
+        );
+
+        Route::post(
+            '/provider-application',
+            [ProviderApplicationController::class, 'store']
+        );
+    });
+
+// Approved Provider
+Route::middleware([
+    'auth:sanctum',
+    'provider.approved',
+])
     ->prefix('provider')
     ->group(function (): void {
 
+        // Provider bookings
+        Route::get(
+            '/bookings',
+            [
+                ProviderBookingController::class,
+                'index',
+            ]
+        );
+
+        Route::get(
+            '/bookings/{booking}',
+            [
+                ProviderBookingController::class,
+                'show',
+            ]
+        );
+
+        Route::post(
+            '/bookings/{booking}/accept',
+            [
+                ProviderBookingController::class,
+                'accept',
+            ]
+        );
+
+        Route::post(
+            '/bookings/{booking}/reject',
+            [
+                ProviderBookingController::class,
+                'reject',
+            ]
+        );
+
+        Route::post(
+            '/bookings/{booking}/start',
+            [
+                ProviderBookingController::class,
+                'start',
+            ]
+        );
+
+        Route::post(
+            '/bookings/{booking}/complete',
+            [
+                ProviderBookingController::class,
+                'complete',
+            ]
+        );
+
+
+        // Provider services
         Route::get(
             '/services',
-            [ProviderServiceController::class, 'index']
+            [
+                ProviderServiceController::class,
+                'index',
+            ]
         );
 
         Route::post(
             '/services',
-            [ProviderServiceController::class, 'store']
+            [
+                ProviderServiceController::class,
+                'store',
+            ]
         );
 
         Route::get(
             '/services/{service}',
-            [ProviderServiceController::class, 'show']
+            [
+                ProviderServiceController::class,
+                'show',
+            ]
         );
 
         Route::put(
             '/services/{service}',
-            [ProviderServiceController::class, 'update']
+            [
+                ProviderServiceController::class,
+                'update',
+            ]
         );
 
         Route::patch(
@@ -197,24 +226,27 @@ Route::middleware('auth:sanctum')
                 'updateStatus',
             ]
         );
-    });
 
-//Provider Profile
-Route::middleware('auth:sanctum')
-    ->prefix('provider')
-    ->group(function (): void {
 
+        // Provider profile
         Route::get(
             '/profile',
-            [ProviderProfileController::class, 'me']
+            [
+                ProviderProfileController::class,
+                'me',
+            ]
         );
 
         Route::put(
             '/profile',
-            [ProviderProfileController::class, 'update']
+            [
+                ProviderProfileController::class,
+                'update',
+            ]
         );
     });
 
+// Public provider profile
 Route::get(
     '/providers/{provider}',
     [ProviderProfileController::class, 'show']
