@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/ui/app_responsive.dart';
+import '../../core/ui/app_theme.dart';
 import '../../models/service.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/booking_service.dart';
@@ -22,11 +24,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _noteController = TextEditingController();
+  final _timeController = TextEditingController();
 
   final BookingService _bookingService = BookingService();
 
   DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
 
   int _quantity = 1;
   bool _isSubmitting = false;
@@ -47,6 +49,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     _phoneController.dispose();
     _addressController.dispose();
     _noteController.dispose();
+    _timeController.dispose();
 
     super.dispose();
   }
@@ -68,19 +71,6 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
-  Future<void> _pickTime() async {
-    final value = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
-    if (value != null) {
-      setState(() {
-        _selectedTime = value;
-      });
-    }
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -91,8 +81,12 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       return;
     }
 
-    if (_selectedTime == null) {
-      _showMessage('Vui lòng chọn giờ sử dụng dịch vụ.');
+    final timeText = _timeController.text.trim();
+
+    final timeRegex = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$');
+
+    if (!timeRegex.hasMatch(timeText)) {
+      _showMessage('Vui lòng nhập giờ đúng định dạng HH:mm, ví dụ 09:30.');
       return;
     }
 
@@ -104,9 +98,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       final booking = await _bookingService.createBooking(
         serviceId: widget.service.id,
         bookingDate: DateFormat('yyyy-MM-dd').format(_selectedDate!),
-        bookingTime:
-            '${_selectedTime!.hour.toString().padLeft(2, '0')}:'
-            '${_selectedTime!.minute.toString().padLeft(2, '0')}',
+        bookingTime: timeText,
         quantity: _quantity,
         customerName: _nameController.text,
         customerPhone: _phoneController.text,
@@ -145,186 +137,444 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   @override
   Widget build(BuildContext context) {
     final total = widget.service.price * _quantity;
+    final provider = widget.service.provider;
+
+    String money(double value) {
+      return NumberFormat.currency(
+        locale: 'vi_VN',
+        symbol: 'đ',
+        decimalDigits: 0,
+      ).format(value);
+    }
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('Đặt dịch vụ')),
+
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: AppResponsive.pagePadding(context, top: 18, bottom: 120),
           children: [
-            Text(
-              widget.service.name,
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            // SERVICE SUMMARY
+            Container(
+              padding: EdgeInsets.all(14.rw(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16.rr(context)),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12.rr(context)),
+                    child: SizedBox(
+                      width: 84.rw(context),
+                      height: 84.rw(context),
+                      child: widget.service.image == null
+                          ? Container(
+                              color: AppColors.softGray,
+                              child: const Icon(
+                                Icons.home_repair_service_rounded,
+                              ),
+                            )
+                          : Image.network(
+                              widget.service.image!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: AppColors.softGray,
+                                child: const Icon(
+                                  Icons.home_repair_service_rounded,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+
+                  SizedBox(width: 14.rw(context)),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.service.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17.rf(context),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+
+                        SizedBox(height: 5.rw(context)),
+
+                        Text(
+                          provider?.businessName ??
+                              provider?.name ??
+                              'Nhà cung cấp',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13.rf(context),
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+
+                        SizedBox(height: 7.rw(context)),
+
+                        Text(
+                          '${money(widget.service.price)}/${widget.service.priceUnit}',
+                          style: TextStyle(
+                            fontSize: 16.rf(context),
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
 
-            const SizedBox(height: 8),
+            SizedBox(height: 28.rw(context)),
 
             Text(
-              NumberFormat.currency(
-                locale: 'vi_VN',
-                symbol: '₫',
-                decimalDigits: 0,
-              ).format(widget.service.price),
+              'Thông tin đặt lịch',
+              style: TextStyle(
+                fontSize: 22.rf(context),
+                fontWeight: FontWeight.w700,
+              ),
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 18.rw(context)),
 
+            // CUSTOMER NAME
             TextFormField(
               controller: _nameController,
               decoration: const InputDecoration(
                 labelText: 'Người nhận dịch vụ',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person_outline),
               ),
               validator: (value) => value == null || value.trim().length < 2
                   ? 'Vui lòng nhập họ tên'
                   : null,
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 14.rw(context)),
 
+            // PHONE
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               decoration: const InputDecoration(
                 labelText: 'Số điện thoại',
-                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.phone_outlined),
               ),
               validator: (value) => value == null || value.trim().isEmpty
                   ? 'Vui lòng nhập số điện thoại'
                   : null,
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 14.rw(context)),
 
+            // DATE
+            _BookingSelector(
+              icon: Icons.calendar_month_outlined,
+              label: 'Ngày thực hiện',
+              value: _selectedDate == null
+                  ? 'Chọn ngày'
+                  : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+              onTap: _pickDate,
+            ),
+
+            SizedBox(height: 14.rw(context)),
+
+            // TIME
+            TextFormField(
+              controller: _timeController,
+              keyboardType: TextInputType.datetime,
+              textInputAction: TextInputAction.next,
+              maxLength: 5,
+              decoration: const InputDecoration(
+                labelText: 'Thời gian',
+                hintText: '09:00',
+                prefixIcon: Icon(Icons.schedule_outlined),
+                counterText: '',
+              ),
+              validator: (value) {
+                final text = value?.trim() ?? '';
+
+                if (text.isEmpty) {
+                  return 'Vui lòng nhập thời gian';
+                }
+
+                final regex = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$');
+
+                if (!regex.hasMatch(text)) {
+                  return 'Nhập theo định dạng HH:mm';
+                }
+
+                return null;
+              },
+            ),
+            SizedBox(height: 14.rw(context)),
+
+            // ADDRESS
             TextFormField(
               controller: _addressController,
+              minLines: 1,
+              maxLines: 2,
               decoration: const InputDecoration(
-                labelText: 'Địa chỉ sử dụng dịch vụ',
-                border: OutlineInputBorder(),
+                labelText: 'Địa chỉ thực hiện',
+                prefixIcon: Icon(Icons.location_on_outlined),
+                hintText: 'Nhập địa chỉ sử dụng dịch vụ',
               ),
               validator: (value) => value == null || value.trim().length < 5
                   ? 'Vui lòng nhập địa chỉ'
                   : null,
             ),
 
-            const SizedBox(height: 16),
+            SizedBox(height: 18.rw(context)),
 
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickDate,
-                    icon: const Icon(Icons.calendar_month),
-                    label: Text(
-                      _selectedDate == null
-                          ? 'Chọn ngày'
-                          : DateFormat('dd/MM/yyyy').format(_selectedDate!),
+            // QUANTITY
+            Container(
+              padding: EdgeInsets.symmetric(
+                horizontal: 16.rw(context),
+                vertical: 12.rw(context),
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(14.rr(context)),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Số lượng',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
-                ),
 
-                const SizedBox(width: 12),
+                  IconButton(
+                    onPressed: _quantity > 1
+                        ? () {
+                            setState(() {
+                              _quantity--;
+                            });
+                          }
+                        : null,
+                    icon: const Icon(Icons.remove_circle_outline),
+                  ),
 
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _pickTime,
-                    icon: const Icon(Icons.schedule),
-                    label: Text(
-                      _selectedTime == null
-                          ? 'Chọn giờ'
-                          : _selectedTime!.format(context),
+                  SizedBox(
+                    width: 28.rw(context),
+                    child: Text(
+                      '$_quantity',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
-                ),
-              ],
+
+                  IconButton(
+                    onPressed: _quantity < 10
+                        ? () {
+                            setState(() {
+                              _quantity++;
+                            });
+                          }
+                        : null,
+                    icon: const Icon(Icons.add_circle_outline),
+                  ),
+                ],
+              ),
             ),
 
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                const Text('Số lượng:'),
-
-                const Spacer(),
-
-                IconButton(
-                  onPressed: _quantity > 1
-                      ? () {
-                          setState(() {
-                            _quantity--;
-                          });
-                        }
-                      : null,
-                  icon: const Icon(Icons.remove_circle_outline),
-                ),
-
-                Text(
-                  '$_quantity',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-
-                IconButton(
-                  onPressed: _quantity < 10
-                      ? () {
-                          setState(() {
-                            _quantity++;
-                          });
-                        }
-                      : null,
-                  icon: const Icon(Icons.add_circle_outline),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
+            SizedBox(height: 18.rw(context)),
 
             TextFormField(
               controller: _noteController,
-              maxLines: 3,
+              maxLines: 4,
               decoration: const InputDecoration(
                 labelText: 'Ghi chú',
-                border: OutlineInputBorder(),
+                hintText: 'Nhập yêu cầu hoặc lưu ý cho nhà cung cấp...',
+                alignLabelWithHint: true,
               ),
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24.rw(context)),
 
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Text('Tổng tiền'),
-                    const Spacer(),
-                    Text(
-                      NumberFormat.currency(
-                        locale: 'vi_VN',
-                        symbol: '₫',
-                        decimalDigits: 0,
-                      ).format(total),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+            // ORDER SUMMARY
+            Container(
+              padding: EdgeInsets.all(18.rw(context)),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16.rr(context)),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Tóm tắt đơn hàng',
+                    style: TextStyle(
+                      fontSize: 20.rf(context),
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                ),
+                  ),
+
+                  SizedBox(height: 18.rw(context)),
+
+                  _SummaryRow(
+                    label: 'Đơn giá',
+                    value: money(widget.service.price),
+                  ),
+
+                  _SummaryRow(label: 'Số lượng', value: '$_quantity'),
+
+                  const Divider(height: 28),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Tổng cộng',
+                          style: TextStyle(
+                            fontSize: 17.rf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        money(total),
+                        style: TextStyle(
+                          fontSize: 23.rf(context),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            FilledButton(
-              onPressed: _isSubmitting ? null : _submit,
-              child: _isSubmitting
-                  ? const CircularProgressIndicator()
-                  : const Text('Xác nhận đặt dịch vụ'),
             ),
           ],
         ),
+      ),
+
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Container(
+          color: AppColors.surface,
+          padding: EdgeInsets.fromLTRB(
+            AppResponsive.horizontalPadding(context),
+            12.rw(context),
+            AppResponsive.horizontalPadding(context),
+            12.rw(context),
+          ),
+          child: FilledButton(
+            onPressed: _isSubmitting ? null : _submit,
+            child: _isSubmitting
+                ? SizedBox(
+                    width: 20.rw(context),
+                    height: 20.rw(context),
+                    child: const CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Xác nhận đặt dịch vụ'),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BookingSelector extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  const _BookingSelector({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14.rr(context)),
+      child: Container(
+        padding: EdgeInsets.all(15.rw(context)),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14.rr(context)),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: AppColors.primary),
+            SizedBox(width: 13.rw(context)),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 12.rf(context),
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  SizedBox(height: 3.rw(context)),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 15.rf(context),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SummaryRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.rw(context)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
       ),
     );
   }

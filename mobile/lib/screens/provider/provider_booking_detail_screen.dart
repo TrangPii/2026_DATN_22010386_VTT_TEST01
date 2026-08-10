@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/ui/app_responsive.dart';
+import '../../core/ui/app_theme.dart';
 import '../../models/booking.dart';
 import '../../services/provider_booking_service.dart';
-import 'provider_bookings_tab.dart';
 
 class ProviderBookingDetailScreen extends StatefulWidget {
   final int bookingId;
@@ -29,7 +30,6 @@ class _ProviderBookingDetailScreenState
   @override
   void initState() {
     super.initState();
-
     _loadBooking();
   }
 
@@ -63,16 +63,24 @@ class _ProviderBookingDetailScreenState
   }
 
   Future<void> _accept() async {
+    final confirmed = await _confirmAction(
+      title: 'Xác nhận đơn hàng?',
+      message: 'Bạn có chắc chắn muốn nhận đơn dịch vụ này?',
+      confirmText: 'Xác nhận đơn',
+    );
+
+    if (!confirmed) return;
+
     await _executeAction(
       () => _bookingService.accept(widget.bookingId),
-      'Đã nhận đơn.',
+      'Đã xác nhận đơn hàng.',
     );
   }
 
   Future<void> _start() async {
-    final confirmed = await _showConfirmDialog(
-      title: 'Bắt đầu dịch vụ',
-      message: 'Xác nhận bắt đầu thực hiện dịch vụ?',
+    final confirmed = await _confirmAction(
+      title: 'Bắt đầu thực hiện?',
+      message: 'Xác nhận rằng bạn đang bắt đầu thực hiện dịch vụ này.',
       confirmText: 'Bắt đầu',
     );
 
@@ -85,9 +93,9 @@ class _ProviderBookingDetailScreenState
   }
 
   Future<void> _complete() async {
-    final confirmed = await _showConfirmDialog(
-      title: 'Hoàn thành dịch vụ',
-      message: 'Xác nhận dịch vụ đã được hoàn thành?',
+    final confirmed = await _confirmAction(
+      title: 'Hoàn thành dịch vụ?',
+      message: 'Xác nhận rằng dịch vụ đã được thực hiện hoàn tất.',
       confirmText: 'Hoàn thành',
     );
 
@@ -100,49 +108,20 @@ class _ProviderBookingDetailScreenState
   }
 
   Future<void> _reject() async {
-    final controller = TextEditingController();
-
-    final reason = await showDialog<String>(
+    final reason = await showModalBottomSheet<String>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Từ chối đơn'),
-          content: TextField(
-            controller: controller,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Lý do từ chối',
-              hintText: 'Nhập lý do từ chối...',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Đóng'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(context, controller.text.trim());
-              },
-              child: const Text('Từ chối'),
-            ),
-          ],
-        );
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _RejectReasonSheet(),
     );
 
-    controller.dispose();
-
-    if (reason == null || reason.length < 5) {
+    if (reason == null || reason.trim().length < 5) {
       return;
     }
 
     await _executeAction(
-      () => _bookingService.reject(id: widget.bookingId, reason: reason),
-      'Đã từ chối đơn.',
+      () => _bookingService.reject(id: widget.bookingId, reason: reason.trim()),
+      'Đã từ chối đơn hàng.',
     );
   }
 
@@ -150,6 +129,8 @@ class _ProviderBookingDetailScreenState
     Future<Booking> Function() action,
     String successMessage,
   ) async {
+    if (_isProcessing) return;
+
     setState(() {
       _isProcessing = true;
     });
@@ -181,7 +162,7 @@ class _ProviderBookingDetailScreenState
     }
   }
 
-  Future<bool> _showConfirmDialog({
+  Future<bool> _confirmAction({
     required String title,
     required String message,
     required String confirmText,
@@ -194,7 +175,7 @@ class _ProviderBookingDetailScreenState
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+            child: const Text('Quay lại'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
@@ -207,10 +188,10 @@ class _ProviderBookingDetailScreenState
     return result ?? false;
   }
 
-  String _formatPrice(double value) {
+  String _money(double value) {
     return NumberFormat.currency(
       locale: 'vi_VN',
-      symbol: '₫',
+      symbol: 'đ',
       decimalDigits: 0,
     ).format(value);
   }
@@ -223,12 +204,15 @@ class _ProviderBookingDetailScreenState
 
     if (_error != null || _booking == null) {
       return Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(title: const Text('Chi tiết đơn hàng')),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_error ?? 'Không tìm thấy đơn.'),
+              Text(
+                _error ?? 'Không tìm thấy đơn hàng.',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
               OutlinedButton(
                 onPressed: _loadBooking,
@@ -241,164 +225,689 @@ class _ProviderBookingDetailScreenState
     }
 
     final booking = _booking!;
+    final status = _statusVisual(booking.status);
 
     return Scaffold(
-      appBar: AppBar(title: Text(booking.bookingCode)),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(
-            booking.serviceName,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Chi tiết đơn hàng')),
+      body: RefreshIndicator(
+        onRefresh: _loadBooking,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: AppResponsive.pagePadding(
+            context,
+            top: 18,
+            bottom: _hasAction(booking.status) ? 120 : 30,
           ),
-
-          const SizedBox(height: 8),
-
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Chip(
-              label: Text(providerBookingStatusLabel(booking.status)),
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Mã đơn hàng',
+                        style: TextStyle(
+                          fontSize: 13.rf(context),
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 4.rw(context)),
+                      Text(
+                        booking.bookingCode,
+                        style: TextStyle(
+                          fontSize: 27.rf(context),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 11.rw(context),
+                    vertical: 6.rw(context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: status.background,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _statusLabel(booking.status),
+                    style: TextStyle(
+                      fontSize: 12.5.rf(context),
+                      fontWeight: FontWeight.w600,
+                      color: status.foreground,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
 
-          const SizedBox(height: 24),
+            SizedBox(height: 24.rw(context)),
 
-          Text(
-            'Thông tin khách hàng',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Khách hàng',
+                    style: TextStyle(
+                      fontSize: 19.rf(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 16.rw(context)),
+                  Row(
+                    children: [
+                      Container(
+                        width: 52.rw(context),
+                        height: 52.rw(context),
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(
+                          color: AppColors.softBlue,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          booking.customerName.isNotEmpty
+                              ? booking.customerName[0].toUpperCase()
+                              : 'K',
+                          style: TextStyle(
+                            fontSize: 19.rf(context),
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 13.rw(context)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              booking.customerName,
+                              style: TextStyle(
+                                fontSize: 17.rf(context),
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(height: 4.rw(context)),
+                            Text(
+                              booking.customerPhone,
+                              style: TextStyle(
+                                fontSize: 13.5.rf(context),
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Gọi điện',
+                        onPressed: null,
+                        icon: const Icon(Icons.phone_outlined),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
 
-          const SizedBox(height: 12),
+            SizedBox(height: 16.rw(context)),
 
-          _InfoRow(title: 'Họ tên', value: booking.customerName),
+            _Card(
+              child: Row(
+                children: [
+                  _ServiceImage(imageUrl: booking.service?.image),
+                  SizedBox(width: 14.rw(context)),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          booking.serviceName,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17.rf(context),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        SizedBox(height: 6.rw(context)),
+                        Text(
+                          '${_money(booking.unitPrice)} / đơn vị',
+                          style: TextStyle(
+                            fontSize: 14.rf(context),
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
-          _InfoRow(title: 'Điện thoại', value: booking.customerPhone),
+            SizedBox(height: 16.rw(context)),
 
-          _InfoRow(title: 'Địa chỉ', value: booking.serviceAddress),
+            _Card(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Thông tin đặt lịch',
+                    style: TextStyle(
+                      fontSize: 19.rf(context),
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  SizedBox(height: 18.rw(context)),
+                  _DetailRow(
+                    icon: Icons.calendar_month_outlined,
+                    label: 'Ngày thực hiện',
+                    value: booking.bookingDate,
+                  ),
+                  _DetailRow(
+                    icon: Icons.schedule_outlined,
+                    label: 'Thời gian',
+                    value: booking.bookingTime,
+                  ),
+                  _DetailRow(
+                    icon: Icons.location_on_outlined,
+                    label: 'Địa chỉ',
+                    value: booking.serviceAddress,
+                  ),
+                  _DetailRow(
+                    icon: Icons.numbers_rounded,
+                    label: 'Số lượng',
+                    value: '${booking.quantity}',
+                  ),
+                  if (booking.note?.trim().isNotEmpty == true)
+                    _DetailRow(
+                      icon: Icons.notes_outlined,
+                      label: 'Ghi chú từ khách hàng',
+                      value: booking.note!,
+                    ),
+                ],
+              ),
+            ),
 
-          const SizedBox(height: 20),
+            if (booking.rejectionReason != null ||
+                booking.cancellationReason != null) ...[
+              SizedBox(height: 16.rw(context)),
+              Container(
+                padding: EdgeInsets.all(16.rw(context)),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(16.rr(context)),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      booking.rejectionReason != null
+                          ? 'Lý do từ chối'
+                          : 'Lý do khách hủy',
+                      style: TextStyle(
+                        fontSize: 16.rf(context),
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.error,
+                      ),
+                    ),
+                    SizedBox(height: 8.rw(context)),
+                    Text(
+                      booking.rejectionReason ??
+                          booking.cancellationReason ??
+                          '',
+                      style: TextStyle(fontSize: 14.rf(context), height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
-          Text(
-            'Thông tin lịch hẹn',
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
+            SizedBox(height: 16.rw(context)),
 
-          const SizedBox(height: 12),
+            _Card(
+              child: Column(
+                children: [
+                  _PriceRow(label: 'Đơn giá', value: _money(booking.unitPrice)),
+                  _PriceRow(label: 'Số lượng', value: '${booking.quantity}'),
+                  const Divider(height: 28),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Tổng giá trị đơn',
+                          style: TextStyle(
+                            fontSize: 17.rf(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        _money(booking.totalAmount),
+                        style: TextStyle(
+                          fontSize: 23.rf(context),
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomAction(booking),
+    );
+  }
 
-          _InfoRow(title: 'Ngày', value: booking.bookingDate),
+  bool _hasAction(String status) {
+    return status == 'PENDING' ||
+        status == 'ACCEPTED' ||
+        status == 'IN_PROGRESS';
+  }
 
-          _InfoRow(title: 'Giờ', value: booking.bookingTime),
+  Widget? _buildBottomAction(Booking booking) {
+    if (!_hasAction(booking.status)) {
+      return null;
+    }
 
-          _InfoRow(title: 'Số lượng', value: booking.quantity.toString()),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          AppResponsive.horizontalPadding(context),
+          12.rw(context),
+          AppResponsive.horizontalPadding(context),
+          12.rw(context),
+        ),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: _isProcessing
+            ? const Center(child: CircularProgressIndicator())
+            : switch (booking.status) {
+                'PENDING' => Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _reject,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: const BorderSide(color: AppColors.error),
+                        ),
+                        child: const Text('Từ chối'),
+                      ),
+                    ),
+                    SizedBox(width: 12.rw(context)),
+                    Expanded(
+                      child: FilledButton(
+                        onPressed: _accept,
+                        child: const Text('Xác nhận đơn'),
+                      ),
+                    ),
+                  ],
+                ),
+                'ACCEPTED' => FilledButton.icon(
+                  onPressed: _start,
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Bắt đầu thực hiện'),
+                ),
+                'IN_PROGRESS' => FilledButton.icon(
+                  onPressed: _complete,
+                  icon: const Icon(Icons.task_alt_rounded),
+                  label: const Text('Hoàn thành dịch vụ'),
+                ),
+                _ => const SizedBox.shrink(),
+              },
+      ),
+    );
+  }
+}
 
-          _InfoRow(title: 'Đơn giá', value: _formatPrice(booking.unitPrice)),
+class _Card extends StatelessWidget {
+  final Widget child;
 
-          _InfoRow(
-            title: 'Tổng tiền',
-            value: _formatPrice(booking.totalAmount),
-          ),
+  const _Card({required this.child});
 
-          if (booking.note?.isNotEmpty == true)
-            _InfoRow(title: 'Ghi chú', value: booking.note!),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(17.rw(context)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16.rr(context)),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: child,
+    );
+  }
+}
 
-          if (booking.rejectionReason?.isNotEmpty == true)
-            _InfoRow(title: 'Lý do từ chối', value: booking.rejectionReason!),
+class _ServiceImage extends StatelessWidget {
+  final String? imageUrl;
 
-          if (booking.cancellationReason?.isNotEmpty == true)
-            _InfoRow(title: 'Lý do hủy', value: booking.cancellationReason!),
+  const _ServiceImage({required this.imageUrl});
 
-          const SizedBox(height: 32),
+  @override
+  Widget build(BuildContext context) {
+    final size = 76.rw(context);
 
-          if (_isProcessing)
-            const Center(child: CircularProgressIndicator())
-          else
-            ..._buildActions(booking),
-        ],
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12.rr(context)),
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: imageUrl != null && imageUrl!.trim().isNotEmpty
+            ? Image.network(
+                imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _fallback(),
+              )
+            : _fallback(),
       ),
     );
   }
 
-  List<Widget> _buildActions(Booking booking) {
-    switch (booking.status) {
-      case 'PENDING':
-        return [
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _reject,
-                  icon: const Icon(Icons.close),
-                  label: const Text('Từ chối'),
-                ),
-              ),
-
-              const SizedBox(width: 12),
-
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: _accept,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Nhận đơn'),
-                ),
-              ),
-            ],
-          ),
-        ];
-
-      case 'ACCEPTED':
-        return [
-          FilledButton.icon(
-            onPressed: _start,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Bắt đầu dịch vụ'),
-          ),
-        ];
-
-      case 'IN_PROGRESS':
-        return [
-          FilledButton.icon(
-            onPressed: _complete,
-            icon: const Icon(Icons.task_alt),
-            label: const Text('Hoàn thành dịch vụ'),
-          ),
-        ];
-
-      default:
-        return [];
-    }
+  Widget _fallback() {
+    return Container(
+      color: AppColors.softGray,
+      alignment: Alignment.center,
+      child: const Icon(
+        Icons.home_repair_service_rounded,
+        color: AppColors.textSecondary,
+      ),
+    );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final String title;
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
   final String value;
 
-  const _InfoRow({required this.title, required this.value});
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: 15.rw(context)),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w600),
+          Container(
+            width: 38.rw(context),
+            height: 38.rw(context),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.softBlue,
+              borderRadius: BorderRadius.circular(10.rr(context)),
+            ),
+            child: Icon(icon, size: 20.ri(context), color: AppColors.primary),
+          ),
+          SizedBox(width: 12.rw(context)),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12.rf(context),
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 3.rw(context)),
+                Text(
+                  value,
+                  style: TextStyle(fontSize: 14.5.rf(context), height: 1.4),
+                ),
+              ],
             ),
           ),
-
-          Expanded(child: Text(value)),
         ],
       ),
     );
   }
+}
+
+class _PriceRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _PriceRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: 10.rw(context)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+class _RejectReasonSheet extends StatefulWidget {
+  const _RejectReasonSheet();
+
+  @override
+  State<_RejectReasonSheet> createState() => _RejectReasonSheetState();
+}
+
+class _RejectReasonSheetState extends State<_RejectReasonSheet> {
+  final _controller = TextEditingController();
+
+  String? _error;
+
+  final _quickReasons = const [
+    'Không thể sắp xếp thời gian',
+    'Ngoài khu vực phục vụ',
+    'Không đủ điều kiện thực hiện',
+    'Lý do khác',
+  ];
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final reason = _controller.text.trim();
+
+    if (reason.length < 5) {
+      setState(() {
+        _error = 'Lý do từ chối phải có ít nhất 5 ký tự';
+      });
+
+      return;
+    }
+
+    Navigator.pop(context, reason);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        20.rw(context),
+        12.rw(context),
+        20.rw(context),
+        20.rw(context) + MediaQuery.viewInsetsOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(24.rr(context)),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40.rw(context),
+                height: 4.rw(context),
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+
+            SizedBox(height: 18.rw(context)),
+
+            Text(
+              'Từ chối đơn hàng',
+              style: TextStyle(
+                fontSize: 21.rf(context),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+
+            SizedBox(height: 6.rw(context)),
+
+            Text(
+              'Vui lòng cho khách hàng biết lý do bạn không thể nhận đơn này.',
+              style: TextStyle(
+                fontSize: 13.5.rf(context),
+                color: AppColors.textSecondary,
+              ),
+            ),
+
+            SizedBox(height: 16.rw(context)),
+
+            Wrap(
+              spacing: 8.rw(context),
+              runSpacing: 8.rw(context),
+              children: _quickReasons
+                  .map(
+                    (reason) => ActionChip(
+                      label: Text(reason),
+                      onPressed: () {
+                        _controller.text = reason == 'Lý do khác' ? '' : reason;
+
+                        setState(() {
+                          _error = null;
+                        });
+                      },
+                    ),
+                  )
+                  .toList(),
+            ),
+
+            SizedBox(height: 16.rw(context)),
+
+            TextField(
+              controller: _controller,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: 'Lý do từ chối',
+                hintText: 'Nhập lý do từ chối đơn...',
+                errorText: _error,
+                alignLabelWithHint: true,
+              ),
+            ),
+
+            SizedBox(height: 18.rw(context)),
+
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Quay lại'),
+                  ),
+                ),
+                SizedBox(width: 12.rw(context)),
+                Expanded(
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                    ),
+                    onPressed: _submit,
+                    child: const Text('Xác nhận từ chối'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _statusLabel(String status) {
+  switch (status) {
+    case 'PENDING':
+      return 'Chờ xác nhận';
+    case 'ACCEPTED':
+      return 'Đã xác nhận';
+    case 'IN_PROGRESS':
+      return 'Đang thực hiện';
+    case 'COMPLETED':
+      return 'Hoàn thành';
+    case 'REJECTED':
+      return 'Đã từ chối';
+    case 'CANCELLED':
+      return 'Khách đã hủy';
+    default:
+      return status;
+  }
+}
+
+_StatusVisual _statusVisual(String status) {
+  switch (status) {
+    case 'PENDING':
+      return const _StatusVisual(Color(0xFFD97706), Color(0xFFFFF7ED));
+
+    case 'ACCEPTED':
+      return const _StatusVisual(AppColors.primary, AppColors.softBlue);
+
+    case 'IN_PROGRESS':
+      return const _StatusVisual(Color(0xFF4338CA), Color(0xFFEEF2FF));
+
+    case 'COMPLETED':
+      return const _StatusVisual(AppColors.success, Color(0xFFF0FDF4));
+
+    case 'REJECTED':
+    case 'CANCELLED':
+      return const _StatusVisual(AppColors.error, Color(0xFFFEF2F2));
+
+    default:
+      return const _StatusVisual(AppColors.textSecondary, AppColors.softGray);
+  }
+}
+
+class _StatusVisual {
+  final Color foreground;
+  final Color background;
+
+  const _StatusVisual(this.foreground, this.background);
 }

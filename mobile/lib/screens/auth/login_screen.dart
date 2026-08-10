@@ -41,9 +41,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (!auth.isLoggedIn && auth.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(auth.error!)));
     }
   }
 
@@ -92,7 +92,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 height: 72.rw(context),
                                 decoration: BoxDecoration(
                                   color: AppColors.softBlue,
-                                  borderRadius: BorderRadius.circular(22.rr(context)),
+                                  borderRadius: BorderRadius.circular(
+                                    22.rr(context),
+                                  ),
                                 ),
                                 alignment: Alignment.center,
                                 child: Icon(
@@ -104,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                             SizedBox(height: 24.rw(context)),
                             Text(
-                              'Chào mừng trở lại',
+                              'Smart Service Hub',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 30.rf(context),
@@ -143,7 +145,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               validator: (value) {
                                 final email = value?.trim() ?? '';
                                 if (email.isEmpty) return 'Vui lòng nhập email';
-                                if (!email.contains('@')) return 'Email không hợp lệ';
+                                if (!email.contains('@'))
+                                  return 'Email không hợp lệ';
                                 return null;
                               },
                             ),
@@ -166,7 +169,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               },
                               decoration: InputDecoration(
                                 hintText: 'Nhập mật khẩu',
-                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline_rounded,
+                                ),
                                 suffixIcon: IconButton(
                                   tooltip: _obscurePassword
                                       ? 'Hiện mật khẩu'
@@ -183,7 +188,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                 ),
                               ),
-                              validator: (value) => value == null || value.isEmpty
+                              validator: (value) =>
+                                  value == null || value.isEmpty
                                   ? 'Vui lòng nhập mật khẩu'
                                   : null,
                             ),
@@ -224,7 +230,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
-                                              builder: (_) => const RegisterScreen(),
+                                              builder: (_) =>
+                                                  const RegisterScreen(),
                                             ),
                                           );
                                         },

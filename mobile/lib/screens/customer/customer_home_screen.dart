@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ui/app_theme.dart';
 import 'customer_bookings_tab.dart';
 import 'customer_home_tab.dart';
 import 'customer_profile_tab.dart';
@@ -20,40 +21,36 @@ class _CustomerHomeScreenState extends State<CustomerHomeScreen> {
     CustomerProfileTab(),
   ];
 
-  static const List<String> _titles = ['Trang chủ', 'Đơn của tôi', 'Tài khoản'];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_titles[_currentIndex])),
-
-      body: IndexedStack(index: _currentIndex, children: _screens),
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        bottom: false,
+        child: IndexedStack(index: _currentIndex, children: _screens),
+      ),
 
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-
         onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            selectedIcon: Icon(Icons.home_rounded),
             label: 'Trang chủ',
           ),
-
           NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'Đơn của tôi',
+            selectedIcon: Icon(Icons.receipt_long_rounded),
+            label: 'Đơn hàng',
           ),
-
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
             label: 'Tài khoản',
           ),
         ],

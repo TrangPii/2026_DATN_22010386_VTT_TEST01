@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/ui/app_responsive.dart';
+import '../../core/ui/app_theme.dart';
 import '../../models/provider_application.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/provider_application_service.dart';
@@ -20,9 +22,7 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
   bool _isOpeningApplication = false;
 
   Future<void> _openProviderApplication() async {
-    if (_isOpeningApplication) {
-      return;
-    }
+    if (_isOpeningApplication) return;
 
     setState(() {
       _isOpeningApplication = true;
@@ -37,9 +37,7 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
         application = await _applicationService.getApplication();
       }
 
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       final submitted = await Navigator.push<bool>(
         context,
@@ -52,17 +50,13 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
         await auth.refreshCurrentUser();
       }
     } on ProviderApplicationException catch (e) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Không thể tải hồ sơ Nhà cung cấp.')),
@@ -79,67 +73,132 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-
     final user = auth.user;
 
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: AppResponsive.pagePadding(context, top: 22, bottom: 32),
       children: [
-        const SizedBox(height: 20),
-
-        CircleAvatar(
-          radius: 46,
-          child: Text(
-            user?.name.isNotEmpty == true ? user!.name[0].toUpperCase() : 'U',
-            style: const TextStyle(fontSize: 32),
+        Text(
+          'Tài khoản',
+          style: TextStyle(
+            fontSize: 28.rf(context),
+            fontWeight: FontWeight.w700,
           ),
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: 20.rw(context)),
 
-        Text(
-          user?.name ?? '',
-          textAlign: TextAlign.center,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-
-        const SizedBox(height: 6),
-
-        Text(user?.email ?? '', textAlign: TextAlign.center),
-
-        const SizedBox(height: 32),
-
-        Card(
+        // PROFILE CARD
+        Container(
+          padding: EdgeInsets.all(22.rw(context)),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20.rr(context)),
+            border: Border.all(color: AppColors.border),
+          ),
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(Icons.email_outlined),
-                title: const Text('Email'),
-                subtitle: Text(user?.email ?? ''),
+              _ProfileAvatar(imageUrl: user?.avatar, name: user?.name),
+
+              SizedBox(height: 14.rw(context)),
+
+              Text(
+                user?.name ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 23.rf(context),
+                  fontWeight: FontWeight.w700,
+                ),
               ),
 
-              const Divider(height: 1),
+              SizedBox(height: 6.rw(context)),
 
-              ListTile(
-                leading: const Icon(Icons.phone_outlined),
-                title: const Text('Số điện thoại'),
-                subtitle: Text(
-                  user?.phone?.isNotEmpty == true
-                      ? user!.phone!
-                      : 'Chưa cập nhật',
+              Text(
+                user?.email ?? '',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13.5.rf(context),
+                  color: AppColors.textSecondary,
+                ),
+              ),
+
+              if (user?.phone?.isNotEmpty == true) ...[
+                SizedBox(height: 4.rw(context)),
+                Text(
+                  user!.phone!,
+                  style: TextStyle(
+                    fontSize: 13.5.rf(context),
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+
+              SizedBox(height: 18.rw(context)),
+
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.symmetric(vertical: 12.rw(context)),
+                decoration: BoxDecoration(
+                  color: AppColors.softBlue,
+                  borderRadius: BorderRadius.circular(12.rr(context)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Thông tin cá nhân',
+                  style: TextStyle(
+                    fontSize: 14.rf(context),
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primary,
+                  ),
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 24),
+        SizedBox(height: 18.rw(context)),
+
+        // ACCOUNT INFO
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16.rr(context)),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            children: [
+              _ProfileRow(
+                icon: Icons.person_outline_rounded,
+                title: 'Họ và tên',
+                value: user?.name ?? '',
+              ),
+
+              const Divider(height: 1),
+
+              _ProfileRow(
+                icon: Icons.email_outlined,
+                title: 'Email',
+                value: user?.email ?? '',
+              ),
+
+              const Divider(height: 1),
+
+              _ProfileRow(
+                icon: Icons.phone_outlined,
+                title: 'Số điện thoại',
+                value: user?.phone?.isNotEmpty == true
+                    ? user!.phone!
+                    : 'Chưa cập nhật',
+              ),
+            ],
+          ),
+        ),
+
+        SizedBox(height: 20.rw(context)),
 
         if (user != null) _buildProviderSection(context, auth),
 
-        const SizedBox(height: 24),
+        SizedBox(height: 24.rw(context)),
 
         OutlinedButton.icon(
           onPressed: auth.isLoading
@@ -147,7 +206,11 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
               : () async {
                   await auth.logout();
                 },
-          icon: const Icon(Icons.logout),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.error,
+            side: const BorderSide(color: AppColors.error),
+          ),
+          icon: const Icon(Icons.logout_rounded),
           label: const Text('Đăng xuất'),
         ),
       ],
@@ -157,118 +220,299 @@ class _CustomerProfileTabState extends State<CustomerProfileTab> {
   Widget _buildProviderSection(BuildContext context, AuthProvider auth) {
     final user = auth.user!;
 
+    // APPROVED
     if (user.canUseProviderMode) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.verified_outlined),
-                title: Text('Tài khoản Nhà cung cấp'),
-                subtitle: Text('Hồ sơ của bạn đã được xác minh.'),
+      return _ProviderCard(
+        icon: Icons.verified_rounded,
+        iconColor: AppColors.success,
+        title: 'Tài khoản Nhà cung cấp đã được phê duyệt',
+        description:
+            'Bạn có thể chuyển sang chế độ Provider để quản lý dịch vụ và đơn hàng.',
+        statusText: 'Đã phê duyệt',
+        statusColor: AppColors.success,
+        buttonText: 'Chuyển sang chế độ Provider',
+        buttonIcon: Icons.storefront_outlined,
+        onPressed: () {
+          final success = auth.switchToProviderMode();
+
+          if (!success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Bạn chưa được cấp quyền Nhà cung cấp.'),
               ),
-
-              const SizedBox(height: 8),
-
-              FilledButton.icon(
-                onPressed: () {
-                  final success = auth.switchToProviderMode();
-
-                  if (!success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Bạn chưa được cấp quyền Nhà cung cấp.'),
-                      ),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.storefront_outlined),
-                label: const Text('Chuyển sang chế độ Nhà cung cấp'),
-              ),
-            ],
-          ),
-        ),
+            );
+          }
+        },
       );
     }
 
+    // PENDING
     if (user.isProviderPending) {
-      return const Card(
-        child: ListTile(
-          leading: Icon(Icons.schedule_outlined),
-          title: Text('Hồ sơ Nhà cung cấp đang chờ duyệt'),
-          subtitle: Text(
-            'Bạn vẫn có thể sử dụng đầy đủ chức năng Khách hàng trong thời gian chờ xét duyệt.',
-          ),
+      return _ProviderCard(
+        icon: Icons.schedule_rounded,
+        iconColor: AppColors.warning,
+        title: 'Hồ sơ đang chờ xét duyệt',
+        description:
+            'Bạn vẫn có thể sử dụng đầy đủ chức năng Khách hàng trong thời gian chờ Admin phê duyệt.',
+        statusText: 'Đang chờ xét duyệt',
+        statusColor: AppColors.warning,
+      );
+    }
+
+    // REJECTED
+    if (user.isProviderRejected) {
+      return _ProviderCard(
+        icon: Icons.cancel_outlined,
+        iconColor: AppColors.error,
+        title: 'Hồ sơ Nhà cung cấp bị từ chối',
+        description:
+            'Bạn có thể cập nhật thông tin và gửi lại hồ sơ để Admin xét duyệt.',
+        statusText: 'Đã từ chối',
+        statusColor: AppColors.error,
+        buttonText: _isOpeningApplication
+            ? 'Đang tải...'
+            : 'Cập nhật và gửi lại',
+        buttonIcon: Icons.edit_outlined,
+        onPressed: _isOpeningApplication ? null : _openProviderApplication,
+      );
+    }
+
+    // NOT APPLIED
+    return _ProviderCard(
+      icon: Icons.storefront_outlined,
+      iconColor: AppColors.primary,
+      title: 'Bạn muốn cung cấp dịch vụ?',
+      description:
+          'Đăng ký trở thành nhà cung cấp để tạo dịch vụ và nhận đơn từ khách hàng.',
+      buttonText: _isOpeningApplication
+          ? 'Đang tải...'
+          : 'Đăng ký trở thành Provider',
+      buttonIcon: Icons.assignment_outlined,
+      onPressed: _isOpeningApplication ? null : _openProviderApplication,
+    );
+  }
+}
+
+class _ProfileAvatar extends StatelessWidget {
+  final String? imageUrl;
+  final String? name;
+
+  const _ProfileAvatar({required this.imageUrl, required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final size = 92.rw(context);
+
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          imageUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _fallback(context, size),
         ),
       );
     }
 
-    if (user.isProviderRejected) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _fallback(context, size);
+  }
+
+  Widget _fallback(BuildContext context, double size) {
+    final letter = name?.trim().isNotEmpty == true
+        ? name!.trim()[0].toUpperCase()
+        : 'U';
+
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: AppColors.softBlue,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: 30.rf(context),
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfileRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _ProfileRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.all(15.rw(context)),
+      child: Row(
+        children: [
+          Container(
+            width: 40.rw(context),
+            height: 40.rw(context),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.softBlue,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: AppColors.primary, size: 20.ri(context)),
+          ),
+
+          SizedBox(width: 12.rw(context)),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12.rf(context),
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 3.rw(context)),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14.5.rf(context),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String description;
+
+  final String? statusText;
+  final Color? statusColor;
+
+  final String? buttonText;
+  final IconData? buttonIcon;
+  final VoidCallback? onPressed;
+
+  const _ProviderCard({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.description,
+    this.statusText,
+    this.statusColor,
+    this.buttonText,
+    this.buttonIcon,
+    this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(18.rw(context)),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(17.rr(context)),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.cancel_outlined),
-                title: Text('Hồ sơ Nhà cung cấp bị từ chối'),
-                subtitle: Text(
-                  'Bạn có thể cập nhật thông tin và gửi lại hồ sơ.',
+              Container(
+                width: 44.rw(context),
+                height: 44.rw(context),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12.rr(context)),
+                ),
+                child: Icon(icon, color: iconColor),
+              ),
+
+              SizedBox(width: 12.rw(context)),
+
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 17.rf(context),
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                  ),
                 ),
               ),
 
-              const SizedBox(height: 8),
-
-              FilledButton.tonalIcon(
-                onPressed: _isOpeningApplication
-                    ? null
-                    : _openProviderApplication,
-                icon: const Icon(Icons.edit_outlined),
-                label: Text(
-                  _isOpeningApplication ? 'Đang tải...' : 'Cập nhật và gửi lại',
+              if (statusText != null)
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 9.rw(context),
+                    vertical: 5.rw(context),
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor!.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    statusText!,
+                    style: TextStyle(
+                      fontSize: 11.5.rf(context),
+                      fontWeight: FontWeight.w600,
+                      color: statusColor,
+                    ),
+                  ),
                 ),
-              ),
             ],
           ),
-        ),
-      );
-    }
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.storefront_outlined),
-              title: Text('Trở thành Nhà cung cấp'),
-              subtitle: Text(
-                'Đăng ký để tạo dịch vụ và nhận đơn từ khách hàng.',
-              ),
+          SizedBox(height: 12.rw(context)),
+
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: 13.5.rf(context),
+              color: AppColors.textSecondary,
+              height: 1.5,
             ),
+          ),
 
-            const SizedBox(height: 8),
+          if (buttonText != null) ...[
+            SizedBox(height: 16.rw(context)),
 
-            FilledButton.icon(
-              onPressed: _isOpeningApplication
-                  ? null
-                  : _openProviderApplication,
-              icon: const Icon(Icons.assignment_outlined),
-              label: Text(
-                _isOpeningApplication
-                    ? 'Đang tải...'
-                    : 'Đăng ký trở thành Nhà cung cấp',
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onPressed,
+                icon: Icon(buttonIcon),
+                label: Text(buttonText!),
               ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

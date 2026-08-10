@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/ui/app_responsive.dart';
+import '../../core/ui/app_theme.dart';
 import '../../models/service.dart';
 import '../../models/service_category.dart';
 import '../../services/catalog_service.dart';
@@ -37,6 +39,7 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
 
   bool _isLoading = true;
   bool _isSubmitting = false;
+  bool _hasChanges = false;
 
   @override
   void initState() {
@@ -44,6 +47,7 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
 
     final service = widget.service;
 
+    // Prefill dữ liệu khi đang chỉnh sửa dịch vụ
     if (service != null) {
       _nameController.text = service.name;
       _descriptionController.text = service.description ?? '';
@@ -58,6 +62,23 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
       _imageController.text = service.image ?? '';
 
       _categoryId = service.category?.id;
+    }
+
+    for (final controller in [
+      _nameController,
+      _descriptionController,
+      _priceController,
+      _priceUnitController,
+      _durationController,
+      _imageController,
+    ]) {
+      controller.addListener(() {
+        if (!_hasChanges && mounted) {
+          setState(() {
+            _hasChanges = true;
+          });
+        }
+      });
     }
 
     _loadCategories();
@@ -162,6 +183,7 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
         ),
       );
 
+      _hasChanges = false;
       Navigator.pop(context, true);
     } on ProviderServiceException catch (e) {
       if (mounted) {
@@ -178,139 +200,391 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
     }
   }
 
+  Widget _imagePlaceholder(BuildContext context) {
+    return Container(
+      color: AppColors.softGray,
+      alignment: Alignment.center,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.image_outlined,
+            size: 42.ri(context),
+            color: AppColors.textSecondary,
+          ),
+          SizedBox(height: 8.rw(context)),
+          Text(
+            'Chưa có hình ảnh',
+            style: TextStyle(
+              fontSize: 13.rf(context),
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _confirmDiscard() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Bỏ thay đổi?'),
+        content: const Text('Những thay đổi chưa được lưu sẽ bị mất.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Tiếp tục chỉnh sửa'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Bỏ thay đổi'),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.isEditing ? 'Sửa dịch vụ' : 'Thêm dịch vụ'),
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  DropdownButtonFormField<int>(
-                    initialValue: _categoryId,
-                    decoration: const InputDecoration(
-                      labelText: 'Danh mục',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _categories
-                        .map(
-                          (category) => DropdownMenuItem(
-                            value: category.id,
-                            child: Text(category.name),
+    return PopScope(
+      canPop: !_hasChanges || _isSubmitting,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop || !_hasChanges || _isSubmitting) {
+          return;
+        }
+
+        final discard = await _confirmDiscard();
+
+        if (discard && context.mounted) {
+          Navigator.pop(context);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          title: Text(widget.isEditing ? 'Chỉnh sửa dịch vụ' : 'Thêm dịch vụ'),
+        ),
+        body: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                child: ListView(
+                  padding: AppResponsive.pagePadding(
+                    context,
+                    top: 18,
+                    bottom: 120,
+                  ),
+                  children: [
+                    // IMAGE
+                    Container(
+                      padding: EdgeInsets.all(18.rw(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(17.rr(context)),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hình ảnh dịch vụ',
+                            style: TextStyle(
+                              fontSize: 18.rf(context),
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _categoryId = value;
-                      });
-                    },
-                    validator: (value) =>
-                        value == null ? 'Vui lòng chọn danh mục' : null,
-                  ),
 
-                  const SizedBox(height: 16),
+                          SizedBox(height: 14.rw(context)),
 
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Tên dịch vụ',
-                      border: OutlineInputBorder(),
+                          if (_imageController.text.trim().isNotEmpty)
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                14.rr(context),
+                              ),
+                              child: AspectRatio(
+                                aspectRatio: 16 / 8,
+                                child: Image.network(
+                                  _imageController.text.trim(),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, _, _) =>
+                                      _imagePlaceholder(context),
+                                ),
+                              ),
+                            )
+                          else
+                            AspectRatio(
+                              aspectRatio: 16 / 7,
+                              child: _imagePlaceholder(context),
+                            ),
+
+                          SizedBox(height: 14.rw(context)),
+
+                          TextFormField(
+                            controller: _imageController,
+                            keyboardType: TextInputType.url,
+                            decoration: const InputDecoration(
+                              labelText: 'URL hình ảnh',
+                              hintText: 'https://...',
+                              prefixIcon: Icon(Icons.image_outlined),
+                            ),
+                          ),
+
+                          SizedBox(height: 7.rw(context)),
+
+                          Text(
+                            'Hiện tại hệ thống sử dụng URL hình ảnh.',
+                            style: TextStyle(
+                              fontSize: 12.rf(context),
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    validator: (value) =>
-                        value == null || value.trim().length < 3
-                        ? 'Tên dịch vụ tối thiểu 3 ký tự'
-                        : null,
-                  ),
 
-                  const SizedBox(height: 16),
+                    SizedBox(height: 18.rw(context)),
 
-                  TextFormField(
-                    controller: _descriptionController,
-                    maxLines: 4,
-                    decoration: const InputDecoration(
-                      labelText: 'Mô tả',
-                      border: OutlineInputBorder(),
+                    // MAIN INFO
+                    Container(
+                      padding: EdgeInsets.all(18.rw(context)),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(17.rr(context)),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DropdownButtonFormField<int>(
+                            initialValue: _categoryId,
+                            decoration: const InputDecoration(
+                              labelText: 'Danh mục',
+                              prefixIcon: Icon(Icons.category_outlined),
+                            ),
+                            items: _categories
+                                .map(
+                                  (category) => DropdownMenuItem(
+                                    value: category.id,
+                                    child: Text(category.name),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() {
+                                _categoryId = value;
+                                _hasChanges = true;
+                              });
+                            },
+                            validator: (value) =>
+                                value == null ? 'Vui lòng chọn danh mục' : null,
+                          ),
+
+                          SizedBox(height: 14.rw(context)),
+
+                          TextFormField(
+                            controller: _nameController,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                              labelText: 'Tên dịch vụ',
+                              hintText: 'Nhập tên dịch vụ...',
+                            ),
+                            validator: (value) =>
+                                value == null || value.trim().length < 3
+                                ? 'Tên dịch vụ tối thiểu 3 ký tự'
+                                : null,
+                          ),
+
+                          SizedBox(height: 14.rw(context)),
+
+                          TextFormField(
+                            controller: _descriptionController,
+                            minLines: 4,
+                            maxLines: 6,
+                            decoration: const InputDecoration(
+                              labelText: 'Mô tả dịch vụ',
+                              hintText: 'Mô tả chi tiết về dịch vụ của bạn...',
+                              alignLabelWithHint: true,
+                            ),
+                          ),
+
+                          SizedBox(height: 14.rw(context)),
+
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: TextFormField(
+                                  controller: _priceController,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Giá dịch vụ',
+                                    suffixText: 'VNĐ',
+                                  ),
+                                  validator: (value) {
+                                    final number = double.tryParse(
+                                      value?.trim() ?? '',
+                                    );
+
+                                    if (number == null || number < 0) {
+                                      return 'Giá không hợp lệ';
+                                    }
+
+                                    return null;
+                                  },
+                                ),
+                              ),
+
+                              SizedBox(width: 12.rw(context)),
+
+                              Expanded(
+                                flex: 2,
+                                child: TextFormField(
+                                  controller: _priceUnitController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Đơn vị',
+                                    hintText: 'Giờ',
+                                  ),
+                                  validator: (value) =>
+                                      value == null || value.trim().isEmpty
+                                      ? 'Bắt buộc'
+                                      : null,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          SizedBox(height: 14.rw(context)),
+
+                          TextFormField(
+                            controller: _durationController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Thời gian dự kiến',
+                              hintText: 'Ví dụ: 120',
+                              suffixText: 'phút',
+                              prefixIcon: Icon(Icons.schedule_outlined),
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return null;
+                              }
+
+                              final minutes = int.tryParse(value.trim());
+
+                              if (minutes == null || minutes <= 0) {
+                                return 'Thời gian không hợp lệ';
+                              }
+
+                              return null;
+                            },
+                          ),
+                        ],
+                      ),
                     ),
+
+                    if (widget.isEditing) ...[
+                      SizedBox(height: 18.rw(context)),
+
+                      Container(
+                        padding: EdgeInsets.all(17.rw(context)),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16.rr(context)),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Trạng thái dịch vụ',
+                                    style: TextStyle(
+                                      fontSize: 16.rf(context),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  SizedBox(height: 4.rw(context)),
+                                  Text(
+                                    widget.service!.status == 'ACTIVE'
+                                        ? 'Dịch vụ hiện đang hoạt động.'
+                                        : 'Dịch vụ hiện đang tạm ngừng.',
+                                    style: TextStyle(
+                                      fontSize: 12.5.rf(context),
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10.rw(context),
+                                vertical: 5.rw(context),
+                              ),
+                              decoration: BoxDecoration(
+                                color: widget.service!.status == 'ACTIVE'
+                                    ? const Color(0xFFF0FDF4)
+                                    : AppColors.softGray,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                widget.service!.status == 'ACTIVE'
+                                    ? 'Đang hoạt động'
+                                    : 'Tạm ngừng',
+                                style: TextStyle(
+                                  fontSize: 11.5.rf(context),
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.service!.status == 'ACTIVE'
+                                      ? AppColors.success
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+        bottomNavigationBar: _isLoading
+            ? null
+            : SafeArea(
+                top: false,
+                child: Container(
+                  color: AppColors.surface,
+                  padding: EdgeInsets.fromLTRB(
+                    AppResponsive.horizontalPadding(context),
+                    12.rw(context),
+                    AppResponsive.horizontalPadding(context),
+                    12.rw(context),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _priceController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Giá',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final number = double.tryParse(value?.trim() ?? '');
-
-                      if (number == null || number < 0) {
-                        return 'Giá không hợp lệ';
-                      }
-
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _priceUnitController,
-                    decoration: const InputDecoration(
-                      labelText: 'Đơn vị giá',
-                      hintText: 'Ví dụ: lần, giờ',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) => value == null || value.trim().isEmpty
-                        ? 'Vui lòng nhập đơn vị giá'
-                        : null,
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _durationController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Thời gian dự kiến (phút)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _imageController,
-                    decoration: const InputDecoration(
-                      labelText: 'URL hình ảnh',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  FilledButton(
+                  child: FilledButton(
                     onPressed: _isSubmitting ? null : _submit,
                     child: _isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                        ? SizedBox(
+                            width: 20.rw(context),
+                            height: 20.rw(context),
+                            child: const CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : Text(
                             widget.isEditing ? 'Lưu thay đổi' : 'Tạo dịch vụ',
                           ),
                   ),
-                ],
+                ),
               ),
-            ),
+      ),
     );
   }
 }
