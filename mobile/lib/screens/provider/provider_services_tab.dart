@@ -209,6 +209,9 @@ class _ProviderServicesTabState extends State<ProviderServicesTab> {
               child: TextField(
                 controller: _searchController,
                 textInputAction: TextInputAction.search,
+                onChanged: (_) {
+                  setState(() {});
+                },
                 onSubmitted: (_) => _loadServices(),
                 decoration: InputDecoration(
                   hintText: 'Tìm kiếm dịch vụ...',

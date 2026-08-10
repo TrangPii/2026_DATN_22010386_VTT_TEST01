@@ -216,7 +216,7 @@ class _ProviderProfileTabState extends State<ProviderProfileTab> {
               final cardWidth = (constraints.maxWidth - gap * 2) / 3;
 
               return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   SizedBox(
                     width: cardWidth,
