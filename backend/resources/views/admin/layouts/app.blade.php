@@ -49,18 +49,27 @@
                 href="{{ route('admin.providers.index') }}"
                 class="{{ request()->routeIs('admin.providers.*')? 'active': '' }}"
             >
-            Nhà cung cấp
+                Nhà cung cấp
             </a>
 
-            <a href="#">
-                Danh mục
+            <a
+                href="{{ route('admin.categories.index') }}"
+                class="{{ request()->routeIs('admin.categories.*')? 'active': '' }}"
+            >
+                Danh mục dịch vụ
             </a>
 
-            <a href="#">
+            <a 
+                href="{{ route('admin.services.index') }}"
+                class="{{ request()->routeIs('admin.services.*')? 'active': '' }}"
+            >
                 Dịch vụ
             </a>
 
-            <a href="#">
+            <a 
+                href="{{ route('admin.bookings.index') }}"
+                class="{{ request()->routeIs('admin.bookings.*')? 'active': '' }}"
+            >
                 Booking
             </a>
 

@@ -6,6 +6,9 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProviderController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ServiceController;
+use App\Http\Controllers\Admin\BookingController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -121,6 +124,108 @@ Route::prefix('admin')
                     ]
                 )
                     ->name('providers.reject');
+
+                // Categories
+                Route::get(
+    '/categories',
+    [
+        CategoryController::class,
+        'index',
+    ]
+)
+    ->name('categories.index');
+
+Route::get(
+    '/categories/create',
+    [
+        CategoryController::class,
+        'create',
+    ]
+)
+    ->name('categories.create');
+
+Route::post(
+    '/categories',
+    [
+        CategoryController::class,
+        'store',
+    ]
+)
+    ->name('categories.store');
+
+Route::get(
+    '/categories/{category}/edit',
+    [
+        CategoryController::class,
+        'edit',
+    ]
+)
+    ->name('categories.edit');
+
+Route::put(
+    '/categories/{category}',
+    [
+        CategoryController::class,
+        'update',
+    ]
+)
+    ->name('categories.update');
+
+Route::patch(
+    '/categories/{category}/status',
+    [
+        CategoryController::class,
+        'updateStatus',
+    ]
+)
+    ->name('categories.status');
+
+                // Services
+                Route::get(
+    '/services',
+    [
+        ServiceController::class,
+        'index',
+    ]
+)
+    ->name('services.index');
+
+Route::get(
+    '/services/{service}',
+    [
+        ServiceController::class,
+        'show',
+    ]
+)
+    ->name('services.show');
+
+Route::patch(
+    '/services/{service}/status',
+    [
+        ServiceController::class,
+        'updateStatus',
+    ]
+)
+    ->name('services.status');
+
+                // Bookings
+                Route::get(
+    '/bookings',
+    [
+        BookingController::class,
+        'index',
+    ]
+)
+    ->name('bookings.index');
+
+Route::get(
+    '/bookings/{booking}',
+    [
+        BookingController::class,
+        'show',
+    ]
+)
+    ->name('bookings.show');
                     
                 Route::post(
                     '/logout',

@@ -53,38 +53,71 @@ class ServiceCategoryController extends Controller
         ]);
     }
 
-    public function services(ServiceCategory $category): JsonResponse
-    {
-        if ($category->status !== 'ACTIVE') {
-            abort(404);
-        }
-
-        $services = $category
-            ->services()
-            ->where('status', 'ACTIVE')
-            ->with([
-                'category',
-                'provider.providerProfile',
-            ])
-            ->latest()
-            ->paginate(10);
-
-        return response()->json([
-            'success' => true,
-            'message' =>
-                'Lấy danh sách dịch vụ theo danh mục thành công.',
-            'data' => [
-                'services' =>
-                    ServiceResource::collection(
-                        $services->items()
-                    ),
-                'pagination' => [
-                    'current_page' => $services->currentPage(),
-                    'last_page' => $services->lastPage(),
-                    'per_page' => $services->perPage(),
-                    'total' => $services->total(),
-                ],
-            ],
-        ]);
+    public function services(
+    ServiceCategory $category
+): JsonResponse {
+    if ($category->status !== 'ACTIVE') {
+        abort(404);
     }
+
+    $services = $category
+        ->services()
+        ->where(
+            'status',
+            'ACTIVE'
+        )
+        ->whereHas(
+            'provider',
+            function ($query): void {
+                $query
+                    ->where(
+                        'status',
+                        'ACTIVE'
+                    )
+                    ->whereHas(
+                        'providerProfile',
+                        function ($profileQuery): void {
+                            $profileQuery->where(
+                                'verification_status',
+                                'APPROVED'
+                            );
+                        }
+                    );
+            }
+        )
+        ->with([
+            'category',
+            'provider.providerProfile',
+        ])
+        ->latest()
+        ->paginate(10);
+
+    return response()->json([
+        'success' => true,
+
+        'message' =>
+            'Lấy danh sách dịch vụ theo danh mục thành công.',
+
+        'data' => [
+            'services' =>
+                ServiceResource::collection(
+                    $services->items()
+                ),
+
+            'pagination' => [
+                'current_page' =>
+                    $services->currentPage(),
+
+                'last_page' =>
+                    $services->lastPage(),
+
+                'per_page' =>
+                    $services->perPage(),
+
+                'total' =>
+                    $services->total(),
+            ],
+        ],
+    ]);
+}
 }
