@@ -45,8 +45,11 @@
                 Người dùng
             </a>
 
-            <a href="#">
-                Nhà cung cấp
+            <a
+                href="{{ route('admin.providers.index') }}"
+                class="{{ request()->routeIs('admin.providers.*')? 'active': '' }}"
+            >
+            Nhà cung cấp
             </a>
 
             <a href="#">

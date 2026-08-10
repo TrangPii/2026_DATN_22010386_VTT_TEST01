@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProviderController;
 use App\Http\Controllers\Admin\UserController;
 
 Route::get('/', function () {
@@ -14,21 +15,31 @@ Route::prefix('admin')
     ->name('admin.')
     ->group(function (): void {
 
+        // Admin guest
+
         Route::middleware('guest')
             ->group(function (): void {
 
                 Route::get(
                     '/login',
-                    [AuthController::class, 'showLogin']
+                    [
+                        AuthController::class,
+                        'showLogin',
+                    ]
                 )
                     ->name('login');
 
                 Route::post(
                     '/login',
-                    [AuthController::class, 'login']
+                    [
+                        AuthController::class,
+                        'login',
+                    ]
                 )
                     ->name('login.submit');
             });
+
+        // Auth Admin
 
         Route::middleware([
             'auth',
@@ -38,31 +49,85 @@ Route::prefix('admin')
 
                 Route::get(
                     '/',
-                    [DashboardController::class, 'index']
+                    [
+                        DashboardController::class,
+                        'index',
+                    ]
                 )
                     ->name('dashboard');
 
+                // Users
                 Route::get(
                     '/users',
-                    [UserController::class, 'index']
+                    [
+                        UserController::class,
+                        'index',
+                    ]
                 )
                     ->name('users.index');
 
                 Route::get(
                     '/users/{user}',
-                    [UserController::class, 'show']
+                    [
+                        UserController::class,
+                        'show',
+                    ]
                 )
                     ->name('users.show');
 
                 Route::patch(
                     '/users/{user}/status',
-                    [UserController::class, 'updateStatus']
+                    [
+                        UserController::class,
+                        'updateStatus',
+                    ]
                 )
                     ->name('users.status');
 
+                // Providers
+
+                Route::get(
+                    '/providers',
+                    [
+                        ProviderController::class,
+                        'index',
+                    ]
+                )
+                    ->name('providers.index');
+
+                Route::get(
+                    '/providers/{provider}',
+                    [
+                        ProviderController::class,
+                        'show',
+                    ]
+                )
+                    ->name('providers.show');
+
+                Route::post(
+                    '/providers/{provider}/approve',
+                    [
+                        ProviderController::class,
+                        'approve',
+                    ]
+                )
+                    ->name('providers.approve');
+
+                Route::post(
+                    '/providers/{provider}/reject',
+                    [
+                        ProviderController::class,
+                        'reject',
+                    ]
+                )
+                    ->name('providers.reject');
+                    
                 Route::post(
                     '/logout',
-                    [AuthController::class, 'logout']
+                    [
+                        AuthController::class,
+                        'logout',
+                    ]
                 )
                     ->name('logout');
             });
