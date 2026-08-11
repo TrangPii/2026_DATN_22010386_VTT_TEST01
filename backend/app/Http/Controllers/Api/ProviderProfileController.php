@@ -5,25 +5,29 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Provider\UpdateProviderProfileRequest;
 use App\Http\Resources\ProviderProfileResource;
+use App\Models\ProviderProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProviderProfileController extends Controller
 {
-    //  Lấy hồ sơ Provider của user đang đăng nhập
-    public function me(Request $request): JsonResponse
-    {
-        $user = $request->user();
+    public function me(
+        Request $request
+    ): JsonResponse {
+        $user =
+            $request->user();
 
-        $profile = $user
-            ->providerProfile()
-            ->with('user')
-            ->first();
+        $profile =
+            $user
+                ->providerProfile()
+                ->with('user')
+                ->first();
 
         if ($profile === null) {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Hồ sơ nhà cung cấp chưa tồn tại.',
             ], 404);
@@ -37,18 +41,21 @@ class ProviderProfileController extends Controller
 
             'data' => [
                 'profile' =>
-                    new ProviderProfileResource($profile),
+                    new ProviderProfileResource(
+                        $profile
+                    ),
             ],
         ]);
     }
 
-    // Cập nhật hồ sơ Provider
     public function update(
         UpdateProviderProfileRequest $request
     ): JsonResponse {
-        $user = $request->user();
+        $user =
+            $request->user();
 
-        $profile = $user->providerProfile;
+        $profile =
+            $user->providerProfile;
 
         if ($profile === null) {
             return response()->json([
@@ -59,9 +66,12 @@ class ProviderProfileController extends Controller
             ], 404);
         }
 
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
-        $profile->update($validated);
+        $profile->update(
+            $validated
+        );
 
         $profile->load('user');
 
@@ -73,16 +83,19 @@ class ProviderProfileController extends Controller
 
             'data' => [
                 'profile' =>
-                    new ProviderProfileResource($profile),
+                    new ProviderProfileResource(
+                        $profile
+                    ),
             ],
         ]);
     }
 
-    /**
-     * Public API: Lấy thông tin Provider để Customer xem. Chỉ hiển thị khi:
-     * - account ACTIVE
-     * - có providerProfile
-     * - verification_status = APPROVED
+    /*
+     * Public Provider profile Chỉ tồn tại công khai khi:
+     *
+     * User ACTIVE
+     * Provider APPROVED
+     * Provider ACTIVE
      */
     public function show(
         User $provider
@@ -91,17 +104,28 @@ class ProviderProfileController extends Controller
             'providerProfile'
         );
 
-        $profile = $provider->providerProfile;
+        $profile =
+            $provider->providerProfile;
 
         if (
-            $provider->status !== 'ACTIVE' ||
-            $profile === null ||
-            $profile->verification_status !== 'APPROVED'
+            $provider->status !==
+                'ACTIVE'
+            || $profile === null
+            || $profile
+                ->verification_status !==
+                ProviderProfile::
+                    VERIFICATION_APPROVED
+            || $profile
+                ->provider_status !==
+                ProviderProfile::
+                    STATUS_ACTIVE
         ) {
             abort(404);
         }
 
-        $profile->loadMissing('user');
+        $profile->loadMissing(
+            'user'
+        );
 
         return response()->json([
             'success' => true,

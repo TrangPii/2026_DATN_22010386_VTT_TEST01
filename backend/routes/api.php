@@ -319,6 +319,14 @@ Route::middleware([
             ]
         );
 
+        Route::patch(
+            '/providers/{profile}/status',
+            [
+                AdminProviderController::class,
+                'updateStatus',
+            ]
+        );
+
         // Categories
         Route::get(
             '/categories',

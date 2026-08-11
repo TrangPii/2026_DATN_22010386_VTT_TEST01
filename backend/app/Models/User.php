@@ -32,6 +32,57 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    /**
+     * Tự động sinh mã người dùng.
+     *
+     * Admin:
+     * SS0000
+     *
+     * User thông thường:
+     * SS0001 -> SS9999
+     */
+    protected static function booted(): void
+    {
+        static::creating(function (User $user): void {
+            /*
+             * Admin luôn sử dụng mã cố định SS0000.
+             */
+            if ($user->role === 'ADMIN') {
+                $user->user_code = 'SS0000';
+
+                return;
+            }
+
+            /*
+             * Lấy mã user lớn nhất hiện tại.
+             *
+             * lockForUpdate() có tác dụng khi User được tạo
+             * bên trong transaction, như AuthController hiện tại.
+             */
+            $lastUserCode = static::query()
+                ->whereNotNull('user_code')
+                ->where('user_code', '!=', 'SS0000')
+                ->orderByDesc('user_code')
+                ->lockForUpdate()
+                ->value('user_code');
+
+            $nextNumber = $lastUserCode !== null
+                ? ((int) substr($lastUserCode, 2)) + 1
+                : 1;
+
+            if ($nextNumber > 9999) {
+                throw new \RuntimeException(
+                    'Đã đạt giới hạn mã người dùng SS9999.'
+                );
+            }
+
+            $user->user_code = sprintf(
+                'SS%04d',
+                $nextNumber
+            );
+        });
+    }
+
     protected function casts(): array
     {
         return [
@@ -45,7 +96,7 @@ class User extends Authenticatable
     {
         return $this->providerProfile !== null
             && $this->providerProfile->verification_status === 'APPROVED';
-    }   
+    }
 
     public function providerProfile(): HasOne
     {
@@ -54,27 +105,42 @@ class User extends Authenticatable
 
     public function services(): HasMany
     {
-        return $this->hasMany(Service::class, 'provider_id');
+        return $this->hasMany(
+            Service::class,
+            'provider_id'
+        );
     }
 
     public function customerBookings(): HasMany
     {
-        return $this->hasMany(Booking::class, 'customer_id');
+        return $this->hasMany(
+            Booking::class,
+            'customer_id'
+        );
     }
 
     public function providerBookings(): HasMany
     {
-        return $this->hasMany(Booking::class, 'provider_id');
+        return $this->hasMany(
+            Booking::class,
+            'provider_id'
+        );
     }
 
     public function reviewsWritten(): HasMany
     {
-        return $this->hasMany(Review::class, 'customer_id');
+        return $this->hasMany(
+            Review::class,
+            'customer_id'
+        );
     }
 
     public function reviewsReceived(): HasMany
     {
-        return $this->hasMany(Review::class, 'provider_id');
+        return $this->hasMany(
+            Review::class,
+            'provider_id'
+        );
     }
 
     public function bookingStatusChanges(): HasMany

@@ -11,57 +11,100 @@ use Illuminate\Support\Facades\DB;
 
 class AdminProviderController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
-        $validated = $request->validate([
-            'status' => [
-                'nullable',
-                'in:PENDING,APPROVED,REJECTED',
-            ],
+    public function index(
+        Request $request
+    ): JsonResponse {
+        $validated =
+            $request->validate([
+                'verification_status' => [
+                    'nullable',
+                    'in:PENDING,APPROVED,REJECTED',
+                ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
-        ]);
+                'provider_status' => [
+                    'nullable',
+                    'in:ACTIVE,LOCKED',
+                ],
 
-        $query = ProviderProfile::query()
-            ->with('user')
-            ->latest();
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
+            ]);
 
-        if (! empty($validated['status'])) {
+        $query =
+            ProviderProfile::query()
+                ->with('user')
+                ->latest('created_at');
+
+        if (
+            ! empty(
+                $validated[
+                    'verification_status'
+                ]
+            )
+        ) {
             $query->where(
                 'verification_status',
-                $validated['status']
+                $validated[
+                    'verification_status'
+                ]
             );
         }
 
-        $profiles = $query->paginate(
-            $validated['per_page'] ?? 20
-        );
+        if (
+            ! empty(
+                $validated[
+                    'provider_status'
+                ]
+            )
+        ) {
+            $query->where(
+                'provider_status',
+                $validated[
+                    'provider_status'
+                ]
+            );
+        }
+
+        $profiles =
+            $query->paginate(
+                $validated[
+                    'per_page'
+                ] ?? 20
+            );
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy danh sách nhà cung cấp thành công.',
 
             'data' => [
                 'providers' =>
-                    ProviderProfileResource::collection(
-                        $profiles->items()
-                    ),
+                    ProviderProfileResource::
+                        collection(
+                            $profiles->items()
+                        ),
 
                 'pagination' => [
                     'current_page' =>
-                        $profiles->currentPage(),
+                        $profiles
+                            ->currentPage(),
 
                     'last_page' =>
-                        $profiles->lastPage(),
+                        $profiles
+                            ->lastPage(),
+
+                    'per_page' =>
+                        $profiles
+                            ->perPage(),
 
                     'total' =>
-                        $profiles->total(),
+                        $profiles
+                            ->total(),
                 ],
             ],
         ]);
@@ -70,21 +113,52 @@ class AdminProviderController extends Controller
     public function approve(
         ProviderProfile $profile
     ): JsonResponse {
-        $profile->update([
-            'verification_status' => 'APPROVED',
-            'verified_at' => now(),
-        ]);
+        if (
+            $profile
+                ->verification_status !==
+            ProviderProfile::
+                VERIFICATION_PENDING
+        ) {
+            return response()->json([
+                'success' => false,
+
+                'message' =>
+                    'Chỉ hồ sơ đang chờ duyệt mới có thể được phê duyệt.',
+            ], 422);
+        }
+
+        DB::transaction(
+            function () use (
+                $profile
+            ): void {
+                $profile->update([
+                    'verification_status' =>
+                        ProviderProfile::
+                            VERIFICATION_APPROVED,
+
+                    'provider_status' =>
+                        ProviderProfile::
+                            STATUS_ACTIVE,
+
+                    'verified_at' =>
+                        now(),
+                ]);
+            }
+        );
 
         $profile->load('user');
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Đã phê duyệt nhà cung cấp.',
 
             'data' => [
                 'profile' =>
-                    new ProviderProfileResource($profile),
+                    new ProviderProfileResource(
+                        $profile
+                    ),
             ],
         ]);
     }
@@ -92,33 +166,107 @@ class AdminProviderController extends Controller
     public function reject(
         ProviderProfile $profile
     ): JsonResponse {
-        DB::transaction(function () use ($profile): void {
-        $profile->update([
-            'verification_status' => 'REJECTED',
-            'verified_at' => null,
-        ]);
+        if (
+            $profile
+                ->verification_status !==
+            ProviderProfile::
+                VERIFICATION_PENDING
+        ) {
+            return response()->json([
+                'success' => false,
 
-        /*
-         * Tắt service của provider bị từ chối.
-         */
-        $profile
-            ->user
-            ->services()
-            ->update([
-                'status' => 'INACTIVE',
-            ]);
-        });
+                'message' =>
+                    'Chỉ hồ sơ đang chờ duyệt mới có thể bị từ chối.',
+            ], 422);
+        }
+
+        DB::transaction(
+            function () use (
+                $profile
+            ): void {
+                $profile->update([
+                    'verification_status' =>
+                        ProviderProfile::
+                            VERIFICATION_REJECTED,
+
+                    'provider_status' =>
+                        null,
+
+                    'verified_at' =>
+                        null,
+                ]);
+            }
+        );
 
         $profile->load('user');
 
         return response()->json([
             'success' => true,
+
             'message' =>
-                'Đã từ chối nhà cung cấp.',
+                'Đã từ chối hồ sơ nhà cung cấp.',
 
             'data' => [
                 'profile' =>
-                    new ProviderProfileResource($profile),
+                    new ProviderProfileResource(
+                        $profile
+                    ),
+            ],
+        ]);
+    }
+
+    public function updateStatus(
+        Request $request,
+        ProviderProfile $profile
+    ): JsonResponse {
+        $validated =
+            $request->validate([
+                'provider_status' => [
+                    'required',
+                    'in:ACTIVE,LOCKED',
+                ],
+            ]);
+
+        if (
+            $profile
+                ->verification_status !==
+            ProviderProfile::
+                VERIFICATION_APPROVED
+        ) {
+            return response()->json([
+                'success' => false,
+
+                'message' =>
+                    'Chỉ Nhà cung cấp đã được phê duyệt mới có trạng thái hoạt động.',
+            ], 422);
+        }
+
+        $profile->update([
+            'provider_status' =>
+                $validated[
+                    'provider_status'
+                ],
+        ]);
+
+        $profile->load('user');
+
+        return response()->json([
+            'success' => true,
+
+            'message' =>
+                $validated[
+                    'provider_status'
+                ] ===
+                ProviderProfile::
+                    STATUS_LOCKED
+                    ? 'Đã khóa quyền Nhà cung cấp.'
+                    : 'Đã mở khóa quyền Nhà cung cấp.',
+
+            'data' => [
+                'profile' =>
+                    new ProviderProfileResource(
+                        $profile
+                    ),
             ],
         ]);
     }

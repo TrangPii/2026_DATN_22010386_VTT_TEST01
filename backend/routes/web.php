@@ -125,6 +125,15 @@ Route::prefix('admin')
                 )
                     ->name('providers.reject');
 
+                Route::patch(
+                    '/providers/{provider}/status',
+                    [
+                        ProviderController::class,
+                        'updateStatus',
+                    ]
+                )               
+    ->name('providers.status');
+
                 // Categories
                 Route::get(
     '/categories',

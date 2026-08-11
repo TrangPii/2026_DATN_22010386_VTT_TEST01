@@ -10,61 +10,80 @@ use Illuminate\Support\Facades\DB;
 
 class ProviderApplicationController extends Controller
 {
-    public function show(Request $request): JsonResponse
-    {
-        $profile = $request->user()
-            ->providerProfile;
+    public function show(
+        Request $request
+    ): JsonResponse {
+        $profile =
+            $request
+                ->user()
+                ->providerProfile;
 
         return response()->json([
             'data' => [
-                'application' => $profile,
+                'application' =>
+                    $profile,
             ],
         ]);
     }
 
-    public function store(Request $request): JsonResponse
-    {
+    public function store(
+        Request $request
+    ): JsonResponse {
         $user = $request->user();
 
-        $validated = $request->validate([
-            'business_name' => [
-                'required',
-                'string',
-                'min:2',
-                'max:150',
-            ],
+        /*
+         * User bị khóa không được gửi hồ sơ Provider.
+         */
+        if ($user->status !== 'ACTIVE') {
+            return response()->json([
+                'message' =>
+                    'Tài khoản hiện không khả dụng.',
+            ], 403);
+        }
 
-            'description' => [
-                'nullable',
-                'string',
-                'max:2000',
-            ],
+        $validated =
+            $request->validate([
+                'business_name' => [
+                    'required',
+                    'string',
+                    'min:2',
+                    'max:150',
+                ],
 
-            'address' => [
-                'required',
-                'string',
-                'max:255',
-            ],
+                'description' => [
+                    'nullable',
+                    'string',
+                    'max:2000',
+                ],
 
-            'identity_number' => [
-                'required',
-                'string',
-                'max:50',
-            ],
+                'address' => [
+                    'required',
+                    'string',
+                    'max:255',
+                ],
 
-            'experience_years' => [
-                'required',
-                'integer',
-                'min:0',
-                'max:80',
-            ],
-        ]);
+                'identity_number' => [
+                    'required',
+                    'string',
+                    'max:50',
+                ],
 
-        $existing = $user->providerProfile;
+                'experience_years' => [
+                    'required',
+                    'integer',
+                    'min:0',
+                    'max:80',
+                ],
+            ]);
+
+        $existing =
+            $user->providerProfile;
 
         if (
-            $existing &&
-            $existing->verification_status === 'APPROVED'
+            $existing !== null
+            && $existing
+                ->verification_status ===
+                ProviderProfile::VERIFICATION_APPROVED
         ) {
             return response()->json([
                 'message' =>
@@ -73,8 +92,10 @@ class ProviderApplicationController extends Controller
         }
 
         if (
-            $existing &&
-            $existing->verification_status === 'PENDING'
+            $existing !== null
+            && $existing
+                ->verification_status ===
+                ProviderProfile::VERIFICATION_PENDING
         ) {
             return response()->json([
                 'message' =>
@@ -87,25 +108,53 @@ class ProviderApplicationController extends Controller
                 $user,
                 $validated,
                 $existing
-            ) {
-                if ($existing) {
+            ): ProviderProfile {
+                /*
+                 * Hồ sơ từng REJECTED: cập nhật lại hồ sơ cũ.
+                 */
+                if ($existing !== null) {
                     $existing->update([
                         ...$validated,
-                        'verification_status' => 'PENDING',
-                        'verified_at' => null,
+
+                        'verification_status' =>
+                            ProviderProfile::
+                                VERIFICATION_PENDING,
+
+                        'provider_status' =>
+                            null,
+
+                        'verified_at' =>
+                            null,
                     ]);
 
-                    return $existing->refresh();
+                    return $existing
+                        ->refresh();
                 }
 
+                /*
+                 * Lần đầu đăng ký Provider.
+                 */
                 return ProviderProfile::create([
-                    'user_id' => $user->id,
-                    ...$validated,
-                    'verification_status' => 'PENDING',
-                    'verified_at' => null,
+                    'user_id' =>
+                        $user->id,
 
-                    'average_rating' => 0,
-                    'total_reviews' => 0,
+                    ...$validated,
+
+                    'verification_status' =>
+                        ProviderProfile::
+                            VERIFICATION_PENDING,
+
+                    'provider_status' =>
+                        null,
+
+                    'verified_at' =>
+                        null,
+
+                    'average_rating' =>
+                        0,
+
+                    'total_reviews' =>
+                        0,
                 ]);
             }
         );
@@ -115,8 +164,9 @@ class ProviderApplicationController extends Controller
                 'Đã gửi yêu cầu đăng ký nhà cung cấp.',
 
             'data' => [
-                'application' => $profile,
+                'application' =>
+                    $profile,
             ],
-        ], $existing ? 200 : 201);
+        ], $existing !== null ? 200 : 201);
     }
 }

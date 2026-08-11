@@ -145,8 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               validator: (value) {
                                 final email = value?.trim() ?? '';
                                 if (email.isEmpty) return 'Vui lòng nhập email';
-                                if (!email.contains('@'))
+                                if (!email.contains('@')) {
                                   return 'Email không hợp lệ';
+                                }
                                 return null;
                               },
                             ),

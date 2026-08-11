@@ -8,6 +8,7 @@ use App\Http\Requests\Booking\StoreBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingStatusHistory;
+use App\Models\ProviderProfile;
 use App\Models\Service;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,63 +17,95 @@ use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
-    public function index(Request $request): JsonResponse
-    {
-        if ($request->user()->role !== 'CUSTOMER') {
-            abort(403, 'Bạn không có quyền truy cập.');
+    public function index(
+        Request $request
+    ): JsonResponse {
+        if (
+            $request->user()->role !==
+            'CUSTOMER'
+        ) {
+            abort(
+                403,
+                'Bạn không có quyền truy cập.'
+            );
         }
 
-        $validated = $request->validate([
-            'status' => [
-                'nullable',
-                'string',
-                'in:PENDING,ACCEPTED,IN_PROGRESS,COMPLETED,REJECTED,CANCELLED',
-            ],
+        $validated =
+            $request->validate([
+                'status' => [
+                    'nullable',
+                    'string',
+                    'in:PENDING,ACCEPTED,IN_PROGRESS,COMPLETED,REJECTED,CANCELLED',
+                ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:50',
-            ],
-        ]);
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:50',
+                ],
+            ]);
 
-        $query = Booking::query()
-            ->where('customer_id', $request->user()->id)
-            ->with([
-                'provider.providerProfile',
-                'service',
-            ])
-            ->latest();
+        $query =
+            Booking::query()
+                ->where(
+                    'customer_id',
+                    $request->user()->id
+                )
+                ->with([
+                    'provider.providerProfile',
+                    'service',
+                ])
+                ->latest();
 
-        if (! empty($validated['status'])) {
-            $query->where('status', $validated['status']);
+        if (
+            ! empty(
+                $validated['status']
+            )
+        ) {
+            $query->where(
+                'status',
+                $validated['status']
+            );
         }
 
-        $bookings = $query->paginate(
-            $validated['per_page'] ?? 10
-        );
+        $bookings =
+            $query->paginate(
+                $validated[
+                    'per_page'
+                ] ?? 10
+            );
 
         return response()->json([
             'success' => true,
-            'message' => 'Lấy danh sách đơn thành công.',
+
+            'message' =>
+                'Lấy danh sách đơn thành công.',
+
             'data' => [
-                'bookings' => BookingResource::collection(
-                    $bookings->items()
-                ),
+                'bookings' =>
+                    BookingResource::
+                        collection(
+                            $bookings
+                                ->items()
+                        ),
 
                 'pagination' => [
                     'current_page' =>
-                        $bookings->currentPage(),
+                        $bookings
+                            ->currentPage(),
 
                     'last_page' =>
-                        $bookings->lastPage(),
+                        $bookings
+                            ->lastPage(),
 
                     'per_page' =>
-                        $bookings->perPage(),
+                        $bookings
+                            ->perPage(),
 
                     'total' =>
-                        $bookings->total(),
+                        $bookings
+                            ->total(),
                 ],
             ],
         ]);
@@ -81,51 +114,66 @@ class BookingController extends Controller
     public function store(
         StoreBookingRequest $request
     ): JsonResponse {
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
-        $service = Service::query()
-            ->with([
-                'provider.providerProfile',
-                'category',
-            ])
-            ->findOrFail($validated['service_id']);
+        $service =
+            Service::query()
+                ->with([
+                    'provider.providerProfile',
+                    'category',
+                ])
+                ->findOrFail(
+                    $validated[
+                        'service_id'
+                    ]
+                );
 
+        $provider =
+            $service->provider;
+
+        $profile =
+            $provider
+                ?->providerProfile;
+
+        /*
+         * Kiểm tra toàn bộ điều kiện
+         * khả dụng trong một block.
+         */
         if (
-            $service->status !== 'ACTIVE' ||
-            $service->category->status !== 'ACTIVE'
+            $service->status !==
+                'ACTIVE'
+
+            || $service->category ===
+                null
+
+            || $service
+                ->category
+                ->status !==
+                'ACTIVE'
+
+            || $provider === null
+
+            || $provider->status !==
+                'ACTIVE'
+
+            || $profile === null
+
+            || $profile
+                ->verification_status !==
+                ProviderProfile::
+                    VERIFICATION_APPROVED
+
+            || $profile
+                ->provider_status !==
+                ProviderProfile::
+                    STATUS_ACTIVE
         ) {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Dịch vụ hiện không khả dụng.',
-            ], 422);
-        }
-
-        if (
-            $service->status !== 'ACTIVE' ||
-            $service->provider === null ||
-            $service->provider->status !== 'ACTIVE' ||
-            $service->provider->providerProfile === null ||
-            $service->provider
-                ->providerProfile
-                ->verification_status !== 'APPROVED'
-        ) {
-            return response()->json([
-            'success' => false,
-            'message' => 'Dịch vụ hiện không khả dụng.',
-            ], 422);
-        }
-
-        if (
-            $service->provider->providerProfile === null ||
-            $service->provider
-                ->providerProfile
-                ->verification_status !== 'APPROVED'
-        ) {
-            return response()->json([
-                'success' => false,
-                'message' =>
-                    'Nhà cung cấp chưa được xác minh.',
             ], 422);
         }
 
@@ -135,87 +183,124 @@ class BookingController extends Controller
         ) {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Bạn không thể đặt dịch vụ của chính mình.',
             ], 422);
         }
 
-        $quantity = $validated['quantity'] ?? 1;
+        $quantity =
+            $validated[
+                'quantity'
+            ] ?? 1;
 
-        $unitPrice = $service->price;
-        $totalAmount = bcmul(
-            (string) $unitPrice,
-            (string) $quantity,
-            2
-        );
+        $unitPrice =
+            $service->price;
 
-        $booking = DB::transaction(
-            function () use (
-                $request,
-                $validated,
-                $service,
-                $quantity,
-                $unitPrice,
-                $totalAmount
-            ): Booking {
-                $booking = Booking::create([
-                    'booking_code' =>
-                        $this->generateBookingCode(),
+        $totalAmount =
+            bcmul(
+                (string) $unitPrice,
+                (string) $quantity,
+                2
+            );
 
-                    'customer_id' =>
-                        $request->user()->id,
+        $booking =
+            DB::transaction(
+                function () use (
+                    $request,
+                    $validated,
+                    $service,
+                    $quantity,
+                    $unitPrice,
+                    $totalAmount
+                ): Booking {
+                    $booking =
+                        Booking::create([
+                            'booking_code' =>
+                                $this
+                                    ->generateBookingCode(),
 
-                    'provider_id' =>
-                        $service->provider_id,
+                            'customer_id' =>
+                                $request
+                                    ->user()
+                                    ->id,
 
-                    'service_id' =>
-                        $service->id,
+                            'provider_id' =>
+                                $service
+                                    ->provider_id,
 
-                    'service_name' =>
-                        $service->name,
+                            'service_id' =>
+                                $service->id,
 
-                    'unit_price' =>
-                        $unitPrice,
+                            'service_name' =>
+                                $service->name,
 
-                    'quantity' =>
-                        $quantity,
+                            'unit_price' =>
+                                $unitPrice,
 
-                    'total_amount' =>
-                        $totalAmount,
+                            'quantity' =>
+                                $quantity,
 
-                    'booking_date' =>
-                        $validated['booking_date'],
+                            'total_amount' =>
+                                $totalAmount,
 
-                    'booking_time' =>
-                        $validated['booking_time'],
+                            'booking_date' =>
+                                $validated[
+                                    'booking_date'
+                                ],
 
-                    'customer_name' =>
-                        $validated['customer_name'],
+                            'booking_time' =>
+                                $validated[
+                                    'booking_time'
+                                ],
 
-                    'customer_phone' =>
-                        $validated['customer_phone'],
+                            'customer_name' =>
+                                $validated[
+                                    'customer_name'
+                                ],
 
-                    'service_address' =>
-                        $validated['service_address'],
+                            'customer_phone' =>
+                                $validated[
+                                    'customer_phone'
+                                ],
 
-                    'note' =>
-                        $validated['note'] ?? null,
+                            'service_address' =>
+                                $validated[
+                                    'service_address'
+                                ],
 
-                    'status' => 'PENDING',
-                ]);
+                            'note' =>
+                                $validated[
+                                    'note'
+                                ] ?? null,
 
-                BookingStatusHistory::create([
-                    'booking_id' => $booking->id,
-                    'changed_by' => $request->user()->id,
-                    'old_status' => null,
-                    'new_status' => 'PENDING',
-                    'note' =>
-                        'Khách hàng tạo yêu cầu đặt dịch vụ.',
-                ]);
+                            'status' =>
+                                'PENDING',
+                        ]);
 
-                return $booking;
-            }
-        );
+                    BookingStatusHistory::
+                        create([
+                            'booking_id' =>
+                                $booking->id,
+
+                            'changed_by' =>
+                                $request
+                                    ->user()
+                                    ->id,
+
+                            'old_status' =>
+                                null,
+
+                            'new_status' =>
+                                'PENDING',
+
+                            'note' =>
+                                'Khách hàng tạo yêu cầu đặt dịch vụ.',
+                        ]);
+
+                    return $booking;
+                }
+            );
 
         $booking->load([
             'customer',
@@ -226,10 +311,15 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Đặt dịch vụ thành công.',
+
+            'message' =>
+                'Đặt dịch vụ thành công.',
+
             'data' => [
                 'booking' =>
-                    new BookingResource($booking),
+                    new BookingResource(
+                        $booking
+                    ),
             ],
         ], 201);
     }
@@ -239,11 +329,21 @@ class BookingController extends Controller
         Booking $booking
     ): JsonResponse {
         if (
-            $request->user()->role !== 'CUSTOMER' ||
-            $booking->customer_id !==
-                $request->user()->id
+            $request
+                ->user()
+                ->role !==
+                'CUSTOMER'
+
+            || $booking
+                ->customer_id !==
+                $request
+                    ->user()
+                    ->id
         ) {
-            abort(403, 'Bạn không có quyền xem đơn này.');
+            abort(
+                403,
+                'Bạn không có quyền xem đơn này.'
+            );
         }
 
         $booking->load([
@@ -256,11 +356,15 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy thông tin đơn thành công.',
+
             'data' => [
                 'booking' =>
-                    new BookingResource($booking),
+                    new BookingResource(
+                        $booking
+                    ),
             ],
         ]);
     }
@@ -270,27 +374,38 @@ class BookingController extends Controller
         Booking $booking
     ): JsonResponse {
         if (
-            $booking->customer_id !==
-            $request->user()->id
+            $booking
+                ->customer_id !==
+            $request
+                ->user()
+                ->id
         ) {
-            abort(403, 'Bạn không có quyền hủy đơn này.');
+            abort(
+                403,
+                'Bạn không có quyền hủy đơn này.'
+            );
         }
 
         if (
             ! in_array(
                 $booking->status,
-                ['PENDING', 'ACCEPTED'],
+                [
+                    'PENDING',
+                    'ACCEPTED',
+                ],
                 true
             )
         ) {
             return response()->json([
                 'success' => false,
+
                 'message' =>
                     'Đơn ở trạng thái hiện tại không thể hủy.',
             ], 422);
         }
 
-        $oldStatus = $booking->status;
+        $oldStatus =
+            $booking->status;
 
         DB::transaction(
             function () use (
@@ -299,26 +414,41 @@ class BookingController extends Controller
                 $oldStatus
             ): void {
                 $booking->update([
-                    'status' => 'CANCELLED',
-                    'cancellation_reason' =>
-                        $request->validated('reason'),
-                    'cancelled_at' => now(),
-                ]);
-
-                BookingStatusHistory::create([
-                    'booking_id' => $booking->id,
-                    'changed_by' =>
-                        $request->user()->id,
-
-                    'old_status' =>
-                        $oldStatus,
-
-                    'new_status' =>
+                    'status' =>
                         'CANCELLED',
 
-                    'note' =>
-                        $request->validated('reason'),
+                    'cancellation_reason' =>
+                        $request
+                            ->validated(
+                                'reason'
+                            ),
+
+                    'cancelled_at' =>
+                        now(),
                 ]);
+
+                BookingStatusHistory::
+                    create([
+                        'booking_id' =>
+                            $booking->id,
+
+                        'changed_by' =>
+                            $request
+                                ->user()
+                                ->id,
+
+                        'old_status' =>
+                            $oldStatus,
+
+                        'new_status' =>
+                            'CANCELLED',
+
+                        'note' =>
+                            $request
+                                ->validated(
+                                    'reason'
+                                ),
+                    ]);
             }
         );
 
@@ -331,10 +461,15 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Hủy đơn thành công.',
+
+            'message' =>
+                'Hủy đơn thành công.',
+
             'data' => [
                 'booking' =>
-                    new BookingResource($booking),
+                    new BookingResource(
+                        $booking
+                    ),
             ],
         ]);
     }
@@ -343,13 +478,19 @@ class BookingController extends Controller
     {
         do {
             $code =
-                'BK-' .
-                now()->format('Ymd') .
-                '-' .
-                strtoupper(Str::random(6));
+                'BK-'
+                . now()->format(
+                    'Ymd'
+                )
+                . '-'
+                . strtoupper(
+                    Str::random(6)
+                );
         } while (
-            Booking::where('booking_code', $code)
-                ->exists()
+            Booking::where(
+                'booking_code',
+                $code
+            )->exists()
         );
 
         return $code;
