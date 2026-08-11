@@ -63,16 +63,52 @@
 
             <option
                 value="ACTIVE"
-                @selected(request('status') === 'ACTIVE')
+                @selected(
+                    request('status') === 'ACTIVE'
+                )
             >
                 Đang hoạt động
             </option>
 
             <option
                 value="INACTIVE"
-                @selected(request('status') === 'INACTIVE')
+                @selected(
+                    request('status') === 'INACTIVE'
+                )
             >
                 Tạm ngừng
+            </option>
+        </select>
+
+        <select
+            name="sort"
+            class="form-control"
+        >
+            <option
+                value="newest"
+                @selected(
+                    request('sort', 'newest') === 'newest'
+                )
+            >
+                Mới nhất
+            </option>
+
+            <option
+                value="services_desc"
+                @selected(
+                    request('sort') === 'services_desc'
+                )
+            >
+                Số dịch vụ giảm dần
+            </option>
+
+            <option
+                value="services_asc"
+                @selected(
+                    request('sort') === 'services_asc'
+                )
+            >
+                Số dịch vụ tăng dần
             </option>
         </select>
 
@@ -99,11 +135,11 @@
         <table>
             <thead>
                 <tr>
-                    <th>ID</th>
-                    <th>Tên</th>
+                    <th>STT</th>
+                    <th>Tên danh mục</th>
                     <th>Slug</th>
-                    <th>Thứ tự</th>
-                    <th>Dịch vụ</th>
+                    <th>Số lượng dịch vụ</th>
+                    <th>Ngày tạo</th>
                     <th>Trạng thái</th>
                     <th>Thao tác</th>
                 </tr>
@@ -113,7 +149,11 @@
                 @forelse ($categories as $category)
                     <tr>
                         <td>
-                            #{{ $category->id }}
+                            {{
+                                ($categories->currentPage() - 1)
+                                * $categories->perPage()
+                                + $loop->iteration
+                            }}
                         </td>
 
                         <td>
@@ -127,18 +167,22 @@
                         </td>
 
                         <td>
-                            {{ $category->display_order }}
-                        </td>
-
-                        <td>
                             {{ $category->services_count }}
                         </td>
 
                         <td>
+                            {{ $category->created_at?->format(
+                                'd/m/Y H:i:s'
+                            ) }}
+                        </td>
+
+                        <td>
                             <span class="badge">
-                                {{ $category->status === 'ACTIVE'
-                                    ? 'Đang hoạt động'
-                                    : 'Tạm ngừng' }}
+                                {{
+                                    $category->status === 'ACTIVE'
+                                        ? 'Đang hoạt động'
+                                        : 'Tạm ngừng'
+                                }}
                             </span>
                         </td>
 
@@ -167,9 +211,11 @@
                                     <input
                                         type="hidden"
                                         name="status"
-                                        value="{{ $category->status === 'ACTIVE'
-                                            ? 'INACTIVE'
-                                            : 'ACTIVE' }}"
+                                        value="{{
+                                            $category->status === 'ACTIVE'
+                                                ? 'INACTIVE'
+                                                : 'ACTIVE'
+                                        }}"
                                     >
 
                                     @if ($category->status === 'ACTIVE')

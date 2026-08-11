@@ -7,21 +7,40 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class ServiceCategoryResource extends JsonResource
 {
-    public function toArray(Request $request): array
-    {
+    public function toArray(
+        Request $request
+    ): array {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'slug' => $this->slug,
-            'description' => $this->description,
-            'image' => $this->image,
-            'status' => $this->status,
-            'display_order' => $this->display_order,
+            'id' =>
+                $this->id,
 
-            'services_count' => $this->whenCounted('services'),
+            'name' =>
+                $this->name,
 
-            'created_at' => $this->created_at?->toISOString(),
-            'updated_at' => $this->updated_at?->toISOString(),
+            'slug' =>
+                $this->slug,
+
+            'description' =>
+                $this->description,
+
+            'image' =>
+                $this->image,
+
+            'status' =>
+                $this->status,
+
+            'services_count' =>
+                $this->whenCounted(
+                    'services'
+                ),
+
+            'created_at' =>
+                $this->created_at
+                    ?->toISOString(),
+
+            'updated_at' =>
+                $this->updated_at
+                    ?->toISOString(),
         ];
     }
 }

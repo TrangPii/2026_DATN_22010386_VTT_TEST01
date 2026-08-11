@@ -145,23 +145,18 @@ class ServiceController extends Controller
                 ->paginate(10)
                 ->withQueryString();
 
-        /*
-         * Phase 2 mới đổi Category
-         * sang created_at DESC.
-         */
         $categories =
             ServiceCategory::query()
-                ->orderBy(
-                    'display_order'
+                ->orderByDesc(
+                    'created_at'
                 )
-                ->orderBy(
-                    'name'
+                ->orderByDesc(
+                    'id'
                 )
                 ->get();
 
         /*
-         * Chỉ Provider thực sự đang hoạt động
-         * mới xuất hiện trong filter Provider.
+         * Chỉ Provider thực sự đang hoạt động mới xuất hiện trong filter Provider.
          */
         $providers =
             User::query()

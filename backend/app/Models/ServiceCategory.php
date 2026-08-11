@@ -18,18 +18,13 @@ class ServiceCategory extends Model
         'description',
         'image',
         'status',
-        'display_order',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'display_order' => 'integer',
-        ];
-    }
 
     public function services(): HasMany
     {
-        return $this->hasMany(Service::class, 'category_id');
+        return $this->hasMany(
+            Service::class,
+            'category_id'
+        );
     }
 }

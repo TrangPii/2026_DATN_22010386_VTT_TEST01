@@ -13,23 +13,136 @@ use Illuminate\Support\Str;
 
 class AdminCategoryController extends Controller
 {
-    public function index(): JsonResponse
-    {
-        $categories = ServiceCategory::query()
-            ->withCount('services')
-            ->orderBy('display_order')
-            ->get();
+    public function index(
+        Request $request
+    ): JsonResponse {
+        $validated =
+            $request->validate([
+                'sort' => [
+                    'nullable',
+                    'in:newest,services_asc,services_desc',
+                ],
+
+                'status' => [
+                    'nullable',
+                    'in:ACTIVE,INACTIVE',
+                ],
+
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                ],
+            ]);
+
+        $query =
+            ServiceCategory::query()
+                ->withCount(
+                    'services'
+                );
+
+        if (
+            ! empty(
+                $validated['search']
+            )
+        ) {
+            $search =
+                trim(
+                    $validated['search']
+                );
+
+            $query->where(
+                function (
+                    $query
+                ) use ($search): void {
+                    $query
+                        ->where(
+                            'name',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
+                            'description',
+                            'like',
+                            "%{$search}%"
+                        );
+                }
+            );
+        }
+
+        if (
+            ! empty(
+                $validated['status']
+            )
+        ) {
+            $query->where(
+                'status',
+                $validated['status']
+            );
+        }
+
+        $sort =
+            $validated['sort']
+                ?? 'newest';
+
+        switch ($sort) {
+            case 'services_asc':
+                $query
+                    ->orderBy(
+                        'services_count',
+                        'asc'
+                    )
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+
+            case 'services_desc':
+                $query
+                    ->orderByDesc(
+                        'services_count'
+                    )
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+
+            case 'newest':
+            default:
+                $query
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+        }
+
+        $categories =
+            $query->get();
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Lấy danh sách danh mục thành công.',
 
             'data' => [
                 'categories' =>
-                    ServiceCategoryResource::collection(
-                        $categories
-                    ),
+                    ServiceCategoryResource::
+                        collection(
+                            $categories
+                        ),
             ],
         ]);
     }
@@ -37,35 +150,47 @@ class AdminCategoryController extends Controller
     public function store(
         StoreCategoryRequest $request
     ): JsonResponse {
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
-        $category = ServiceCategory::create([
-            'name' => $validated['name'],
-            'slug' =>
-                $this->generateUniqueSlug(
-                    $validated['name']
-                ),
+        $category =
+            ServiceCategory::create([
+                'name' =>
+                    trim(
+                        $validated['name']
+                    ),
 
-            'description' =>
-                $validated['description'] ?? null,
+                'slug' =>
+                    $this
+                        ->generateUniqueSlug(
+                            $validated['name']
+                        ),
 
-            'image' =>
-                $validated['image'] ?? null,
+                'description' =>
+                    $validated[
+                        'description'
+                    ] ?? null,
 
-            'display_order' =>
-                $validated['display_order'] ?? 0,
+                'image' =>
+                    $validated[
+                        'image'
+                    ] ?? null,
 
-            'status' => 'ACTIVE',
-        ]);
+                'status' =>
+                    'ACTIVE',
+            ]);
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Tạo danh mục thành công.',
 
             'data' => [
                 'category' =>
-                    new ServiceCategoryResource($category),
+                    new ServiceCategoryResource(
+                        $category
+                    ),
             ],
         ], 201);
     }
@@ -74,26 +199,47 @@ class AdminCategoryController extends Controller
         UpdateCategoryRequest $request,
         ServiceCategory $category
     ): JsonResponse {
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
-        if (isset($validated['name'])) {
-            $validated['slug'] =
-                $this->generateUniqueSlug(
-                    $validated['name'],
-                    $category->id
+        if (
+            isset(
+                $validated['name']
+            )
+        ) {
+            $validated['name'] =
+                trim(
+                    $validated['name']
                 );
+
+            if (
+                $validated['name'] !==
+                $category->name
+            ) {
+                $validated['slug'] =
+                    $this
+                        ->generateUniqueSlug(
+                            $validated['name'],
+                            $category->id
+                        );
+            }
         }
 
-        $category->update($validated);
+        $category->update(
+            $validated
+        );
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Cập nhật danh mục thành công.',
 
             'data' => [
                 'category' =>
-                    new ServiceCategoryResource($category),
+                    new ServiceCategoryResource(
+                        $category
+                    ),
             ],
         ]);
     }
@@ -102,25 +248,30 @@ class AdminCategoryController extends Controller
         Request $request,
         ServiceCategory $category
     ): JsonResponse {
-        $validated = $request->validate([
-            'status' => [
-                'required',
-                'in:ACTIVE,INACTIVE',
-            ],
-        ]);
+        $validated =
+            $request->validate([
+                'status' => [
+                    'required',
+                    'in:ACTIVE,INACTIVE',
+                ],
+            ]);
 
         $category->update([
-            'status' => $validated['status'],
+            'status' =>
+                $validated['status'],
         ]);
 
         return response()->json([
             'success' => true,
+
             'message' =>
                 'Cập nhật trạng thái danh mục thành công.',
 
             'data' => [
                 'category' =>
-                    new ServiceCategoryResource($category),
+                    new ServiceCategoryResource(
+                        $category
+                    ),
             ],
         ]);
     }
@@ -129,18 +280,30 @@ class AdminCategoryController extends Controller
         string $name,
         ?int $ignoreId = null
     ): string {
-        $base = Str::slug($name);
+        $base =
+            Str::slug(
+                trim($name)
+            );
 
-        if ($base === '') {
-            $base = 'category';
+        if (
+            $base === ''
+        ) {
+            $base =
+                'category';
         }
 
-        $slug = $base;
-        $counter = 2;
+        $slug =
+            $base;
+
+        $counter =
+            2;
 
         while (
             ServiceCategory::query()
-                ->where('slug', $slug)
+                ->where(
+                    'slug',
+                    $slug
+                )
                 ->when(
                     $ignoreId !== null,
                     fn ($query) =>
@@ -152,7 +315,11 @@ class AdminCategoryController extends Controller
                 )
                 ->exists()
         ) {
-            $slug = $base . '-' . $counter++;
+            $slug =
+                $base
+                . '-'
+                . $counter++;
+
         }
 
         return $slug;

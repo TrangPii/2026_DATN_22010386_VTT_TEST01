@@ -8,7 +8,9 @@ class StoreCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'ADMIN';
+        return $this
+            ->user()
+            ?->role === 'ADMIN';
     }
 
     public function rules(): array
@@ -32,12 +34,6 @@ class StoreCategoryRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:255',
-            ],
-
-            'display_order' => [
-                'nullable',
-                'integer',
-                'min:0',
             ],
         ];
     }

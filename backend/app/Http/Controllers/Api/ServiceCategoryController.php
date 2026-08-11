@@ -27,11 +27,16 @@ class ServiceCategoryController extends Controller
                                 'ACTIVE'
                             ),
                 ])
-                ->orderBy(
-                    'display_order'
+
+                /*
+                 * Mobile mặc định:
+                 * danh mục mới nhất trước.
+                 */
+                ->orderByDesc(
+                    'created_at'
                 )
-                ->orderBy(
-                    'name'
+                ->orderByDesc(
+                    'id'
                 )
                 ->get();
 
@@ -149,8 +154,7 @@ class ServiceCategoryController extends Controller
                 'services' =>
                     ServiceResource::
                         collection(
-                            $services
-                                ->items()
+                            $services->items()
                         ),
 
                 'pagination' => [

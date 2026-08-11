@@ -13,35 +13,48 @@ use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    // Danh sách danh mục
     public function index(
         Request $request
     ): View {
-        $validated = $request->validate([
-            'search' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
+        $validated =
+            $request->validate([
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                ],
 
-            'status' => [
-                'nullable',
-                'in:ACTIVE,INACTIVE',
-            ],
-        ]);
+                'status' => [
+                    'nullable',
+                    'in:ACTIVE,INACTIVE',
+                ],
 
-        $query = ServiceCategory::query()
-            ->withCount('services')
-            ->orderBy('display_order')
-            ->orderBy('name');
+                'sort' => [
+                    'nullable',
+                    'in:newest,services_asc,services_desc',
+                ],
+            ]);
 
-        if (! empty($validated['search'])) {
-            $search = trim(
+        $query =
+            ServiceCategory::query()
+                ->withCount(
+                    'services'
+                );
+
+        if (
+            ! empty(
                 $validated['search']
-            );
+            )
+        ) {
+            $search =
+                trim(
+                    $validated['search']
+                );
 
             $query->where(
-                function ($query) use ($search): void {
+                function (
+                    $query
+                ) use ($search): void {
                     $query
                         ->where(
                             'name',
@@ -57,16 +70,68 @@ class CategoryController extends Controller
             );
         }
 
-        if (! empty($validated['status'])) {
+        if (
+            ! empty(
+                $validated['status']
+            )
+        ) {
             $query->where(
                 'status',
                 $validated['status']
             );
         }
 
-        $categories = $query
-            ->paginate(10)
-            ->withQueryString();
+        $sort =
+            $validated['sort']
+                ?? 'newest';
+
+        switch ($sort) {
+            case 'services_asc':
+                $query
+                    ->orderBy(
+                        'services_count',
+                        'asc'
+                    )
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+
+            case 'services_desc':
+                $query
+                    ->orderByDesc(
+                        'services_count'
+                    )
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+
+            case 'newest':
+            default:
+                $query
+                    ->orderByDesc(
+                        'created_at'
+                    )
+                    ->orderByDesc(
+                        'id'
+                    );
+
+                break;
+        }
+
+        $categories =
+            $query
+                ->paginate(10)
+                ->withQueryString();
 
         return view(
             'admin.categories.category_list',
@@ -74,7 +139,6 @@ class CategoryController extends Controller
         );
     }
 
-    // Form tạo danh mục
     public function create(): View
     {
         return view(
@@ -82,43 +146,48 @@ class CategoryController extends Controller
         );
     }
 
-    // Lưu danh mục mới
     public function store(
         StoreCategoryRequest $request
     ): RedirectResponse {
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
         ServiceCategory::create([
             'name' =>
-                trim($validated['name']),
-
-            'slug' =>
-                $this->generateUniqueSlug(
+                trim(
                     $validated['name']
                 ),
 
+            'slug' =>
+                $this
+                    ->generateUniqueSlug(
+                        $validated['name']
+                    ),
+
             'description' =>
-                $validated['description'] ?? null,
+                $validated[
+                    'description'
+                ] ?? null,
 
             'image' =>
-                $validated['image'] ?? null,
-
-            'display_order' =>
-                $validated['display_order'] ?? 0,
+                $validated[
+                    'image'
+                ] ?? null,
 
             'status' =>
                 'ACTIVE',
         ]);
 
         return redirect()
-            ->route('admin.categories.index')
+            ->route(
+                'admin.categories.index'
+            )
             ->with(
                 'success',
                 'Đã tạo danh mục dịch vụ.'
             );
     }
 
-    // Form chỉnh sửa
     public function edit(
         ServiceCategory $category
     ): View {
@@ -128,26 +197,33 @@ class CategoryController extends Controller
         );
     }
 
-    // Cập nhật thông tin danh mục
     public function update(
         UpdateCategoryRequest $request,
         ServiceCategory $category
     ): RedirectResponse {
-        $validated = $request->validated();
+        $validated =
+            $request->validated();
 
-        // Nếu đổi tên thì tạo lại slug
         if (
-            isset($validated['name']) &&
-            $validated['name'] !== $category->name
+            isset(
+                $validated['name']
+            )
+            && trim(
+                $validated['name']
+            ) !==
+                $category->name
         ) {
             $validated['name'] =
-                trim($validated['name']);
+                trim(
+                    $validated['name']
+                );
 
             $validated['slug'] =
-                $this->generateUniqueSlug(
-                    $validated['name'],
-                    $category->id
-                );
+                $this
+                    ->generateUniqueSlug(
+                        $validated['name'],
+                        $category->id
+                    );
         }
 
         $category->update(
@@ -155,24 +231,26 @@ class CategoryController extends Controller
         );
 
         return redirect()
-            ->route('admin.categories.index')
+            ->route(
+                'admin.categories.index'
+            )
             ->with(
                 'success',
                 'Đã cập nhật danh mục dịch vụ.'
             );
     }
 
-    // ACTIVE / INACTIVE
     public function updateStatus(
         Request $request,
         ServiceCategory $category
     ): RedirectResponse {
-        $validated = $request->validate([
-            'status' => [
-                'required',
-                'in:ACTIVE,INACTIVE',
-            ],
-        ]);
+        $validated =
+            $request->validate([
+                'status' => [
+                    'required',
+                    'in:ACTIVE,INACTIVE',
+                ],
+            ]);
 
         $category->update([
             'status' =>
@@ -181,27 +259,34 @@ class CategoryController extends Controller
 
         return back()->with(
             'success',
-            $validated['status'] === 'ACTIVE'
+            $validated['status'] ===
+                'ACTIVE'
                 ? 'Đã kích hoạt danh mục.'
                 : 'Đã tạm ngừng danh mục.'
         );
     }
 
-    // Slug unique toàn bảng
     private function generateUniqueSlug(
         string $name,
         ?int $ignoreCategoryId = null
     ): string {
-        $baseSlug = Str::slug(
-            trim($name)
-        );
+        $baseSlug =
+            Str::slug(
+                trim($name)
+            );
 
-        if ($baseSlug === '') {
-            $baseSlug = 'category';
+        if (
+            $baseSlug === ''
+        ) {
+            $baseSlug =
+                'category';
         }
 
-        $slug = $baseSlug;
-        $counter = 2;
+        $slug =
+            $baseSlug;
+
+        $counter =
+            2;
 
         while (
             ServiceCategory::query()
@@ -221,7 +306,9 @@ class CategoryController extends Controller
                 ->exists()
         ) {
             $slug =
-                $baseSlug . '-' . $counter;
+                $baseSlug
+                . '-'
+                . $counter;
 
             $counter++;
         }

@@ -9,12 +9,17 @@ class UpdateCategoryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->role === 'ADMIN';
+        return $this
+            ->user()
+            ?->role === 'ADMIN';
     }
 
     public function rules(): array
     {
-        $category = $this->route('category');
+        $category =
+            $this->route(
+                'category'
+            );
 
         return [
             'name' => [
@@ -27,7 +32,9 @@ class UpdateCategoryRequest extends FormRequest
                 Rule::unique(
                     'service_categories',
                     'name'
-                )->ignore($category?->id),
+                )->ignore(
+                    $category?->id
+                ),
             ],
 
             'description' => [
@@ -42,12 +49,6 @@ class UpdateCategoryRequest extends FormRequest
                 'nullable',
                 'string',
                 'max:255',
-            ],
-
-            'display_order' => [
-                'sometimes',
-                'integer',
-                'min:0',
             ],
         ];
     }

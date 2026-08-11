@@ -13,58 +13,87 @@ class AdminUserController extends Controller
     public function index(
         Request $request
     ): JsonResponse {
-        $validated = $request->validate([
-            'role' => [
-                'nullable',
-                'in:CUSTOMER,ADMIN',
-            ],
+        $validated =
+            $request->validate([
+                'role' => [
+                    'nullable',
+                    'in:CUSTOMER,ADMIN',
+                ],
 
-            'status' => [
-                'nullable',
-                'in:ACTIVE,LOCKED',
-            ],
+                'status' => [
+                    'nullable',
+                    'in:ACTIVE,LOCKED',
+                ],
 
-            'search' => [
-                'nullable',
-                'string',
-                'max:100',
-            ],
+                'search' => [
+                    'nullable',
+                    'string',
+                    'max:100',
+                ],
 
-            'per_page' => [
-                'nullable',
-                'integer',
-                'min:1',
-                'max:100',
-            ],
-        ]);
+                'per_page' => [
+                    'nullable',
+                    'integer',
+                    'min:1',
+                    'max:100',
+                ],
+            ]);
 
-        $query = User::query()
-            ->with('providerProfile')
-            ->latest();
+        $query =
+            User::query()
+                ->with(
+                    'providerProfile'
+                )
+                ->orderByDesc(
+                    'created_at'
+                )
+                ->orderByDesc(
+                    'id'
+                );
 
-        if (! empty($validated['role'])) {
+        if (
+            ! empty(
+                $validated['role']
+            )
+        ) {
             $query->where(
                 'role',
                 $validated['role']
             );
         }
 
-        if (! empty($validated['status'])) {
+        if (
+            ! empty(
+                $validated['status']
+            )
+        ) {
             $query->where(
                 'status',
                 $validated['status']
             );
         }
 
-        if (! empty($validated['search'])) {
-            $search = trim(
+        if (
+            ! empty(
                 $validated['search']
-            );
+            )
+        ) {
+            $search =
+                trim(
+                    $validated['search']
+                );
 
             $query->where(
-                function ($query) use ($search): void {
+                function (
+                    $query
+                ) use ($search): void {
                     $query
                         ->where(
+                            'user_code',
+                            'like',
+                            "%{$search}%"
+                        )
+                        ->orWhere(
                             'name',
                             'like',
                             "%{$search}%"
@@ -83,12 +112,16 @@ class AdminUserController extends Controller
             );
         }
 
-        $users = $query->paginate(
-            $validated['per_page'] ?? 20
-        );
+        $users =
+            $query->paginate(
+                $validated[
+                    'per_page'
+                ] ?? 20
+            );
 
         return response()->json([
-            'success' => true,
+            'success' =>
+                true,
 
             'message' =>
                 'Lấy danh sách người dùng thành công.',
@@ -101,13 +134,20 @@ class AdminUserController extends Controller
 
                 'pagination' => [
                     'current_page' =>
-                        $users->currentPage(),
+                        $users
+                            ->currentPage(),
 
                     'last_page' =>
-                        $users->lastPage(),
+                        $users
+                            ->lastPage(),
+
+                    'per_page' =>
+                        $users
+                            ->perPage(),
 
                     'total' =>
-                        $users->total(),
+                        $users
+                            ->total(),
                 ],
             ],
         ]);
@@ -121,14 +161,17 @@ class AdminUserController extends Controller
         );
 
         return response()->json([
-            'success' => true,
+            'success' =>
+                true,
 
             'message' =>
                 'Lấy thông tin người dùng thành công.',
 
             'data' => [
                 'user' =>
-                    new UserResource($user),
+                    new UserResource(
+                        $user
+                    ),
             ],
         ]);
     }
@@ -137,16 +180,21 @@ class AdminUserController extends Controller
         Request $request,
         User $user
     ): JsonResponse {
-        $validated = $request->validate([
-            'status' => [
-                'required',
-                'in:ACTIVE,LOCKED',
-            ],
-        ]);
+        $validated =
+            $request->validate([
+                'status' => [
+                    'required',
+                    'in:ACTIVE,LOCKED',
+                ],
+            ]);
 
-        if ($user->role === 'ADMIN') {
+        if (
+            $user->role ===
+            'ADMIN'
+        ) {
             return response()->json([
-                'success' => false,
+                'success' =>
+                    false,
 
                 'message' =>
                     'Không thể thay đổi trạng thái tài khoản quản trị.',
@@ -155,13 +203,29 @@ class AdminUserController extends Controller
 
         if (
             (int) $user->id ===
-            (int) $request->user()->id
+            (int) $request
+                ->user()
+                ->id
         ) {
             return response()->json([
-                'success' => false,
+                'success' =>
+                    false,
 
                 'message' =>
                     'Bạn không thể thay đổi trạng thái tài khoản đang đăng nhập.',
+            ], 422);
+        }
+
+        if (
+            $user->status ===
+            $validated['status']
+        ) {
+            return response()->json([
+                'success' =>
+                    false,
+
+                'message' =>
+                    'Tài khoản đã ở trạng thái này.',
             ], 422);
         }
 
@@ -171,11 +235,12 @@ class AdminUserController extends Controller
         ]);
 
         if (
-            $validated['status']
-                === 'LOCKED'
+            $validated['status'] ===
+            'LOCKED'
         ) {
-
-            $user->tokens()->delete();
+            $user
+                ->tokens()
+                ->delete();
         }
 
         $user->loadMissing(
@@ -183,17 +248,20 @@ class AdminUserController extends Controller
         );
 
         return response()->json([
-            'success' => true,
+            'success' =>
+                true,
 
             'message' =>
-                $validated['status']
-                    === 'LOCKED'
+                $validated['status'] ===
+                'LOCKED'
                     ? 'Đã khóa tài khoản.'
                     : 'Đã mở khóa tài khoản.',
 
             'data' => [
                 'user' =>
-                    new UserResource($user),
+                    new UserResource(
+                        $user
+                    ),
             ],
         ]);
     }

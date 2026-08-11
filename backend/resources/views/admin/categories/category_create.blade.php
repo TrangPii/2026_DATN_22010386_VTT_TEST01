@@ -113,27 +113,6 @@
                 @enderror
             </div>
 
-            <div class="form-group">
-                <label for="display_order">
-                    Thứ tự hiển thị
-                </label>
-
-                <input
-                    id="display_order"
-                    type="number"
-                    name="display_order"
-                    value="{{ old('display_order', 0) }}"
-                    class="form-control"
-                    min="0"
-                >
-
-                @error('display_order')
-                    <div class="error">
-                        {{ $message }}
-                    </div>
-                @enderror
-            </div>
-
             <div class="actions">
                 <button
                     type="submit"
