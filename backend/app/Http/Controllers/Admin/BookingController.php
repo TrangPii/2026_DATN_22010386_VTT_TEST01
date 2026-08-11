@@ -4,21 +4,36 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
+use App\Models\ProviderProfile;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BookingController extends Controller
 {
-    public function index(
-        Request $request
-    ): View {
+    public function index(Request $request): View
+    {
         $validated = $request->validate([
-            'search' => [
+            'booking_code' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'user_code' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
+            'service_name' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
-
+            'provider_id' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+            ],
             'status' => [
                 'nullable',
                 'in:PENDING,ACCEPTED,IN_PROGRESS,COMPLETED,REJECTED,CANCELLED',
@@ -31,68 +46,48 @@ class BookingController extends Controller
                 'provider.providerProfile',
                 'service',
             ])
-            ->latest();
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
 
-        if (! empty($validated['search'])) {
-            $search = trim(
-                $validated['search']
-            );
+        if (! empty($validated['booking_code'])) {
+            $bookingCode = trim($validated['booking_code']);
 
             $query->where(
-                function ($query) use ($search): void {
-                    $query
-                        ->where(
-                            'booking_code',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhere(
-                            'service_name',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhere(
-                            'customer_name',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhere(
-                            'customer_phone',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhereHas(
-                            'customer',
-                            function ($customerQuery) use ($search): void {
-                                $customerQuery->where(
-                                    'email',
-                                    'like',
-                                    "%{$search}%"
-                                );
-                            }
-                        )
-                        ->orWhereHas(
-                            'provider',
-                            function ($providerQuery) use ($search): void {
-                                $providerQuery
-                                    ->where(
-                                        'name',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhereHas(
-                                        'providerProfile',
-                                        function ($profileQuery) use ($search): void {
-                                            $profileQuery->where(
-                                                'business_name',
-                                                'like',
-                                                "%{$search}%"
-                                            );
-                                        }
-                                    );
-                            }
-                        );
+                'booking_code',
+                'like',
+                "%{$bookingCode}%"
+            );
+        }
+
+        if (! empty($validated['user_code'])) {
+            $userCode = trim($validated['user_code']);
+
+            $query->whereHas(
+                'customer',
+                function ($customerQuery) use ($userCode): void {
+                    $customerQuery->where(
+                        'user_code',
+                        'like',
+                        "%{$userCode}%"
+                    );
                 }
+            );
+        }
+
+        if (! empty($validated['service_name'])) {
+            $serviceName = trim($validated['service_name']);
+
+            $query->where(
+                'service_name',
+                'like',
+                "%{$serviceName}%"
+            );
+        }
+
+        if (! empty($validated['provider_id'])) {
+            $query->where(
+                'provider_id',
+                $validated['provider_id']
             );
         }
 
@@ -104,18 +99,34 @@ class BookingController extends Controller
         }
 
         $bookings = $query
-            ->paginate(10)
+            ->paginate(6)
             ->withQueryString();
+
+        $providers = User::query()
+            ->with('providerProfile')
+            ->whereHas(
+                'providerProfile',
+                function ($profileQuery): void {
+                    $profileQuery->where(
+                        'verification_status',
+                        ProviderProfile::VERIFICATION_APPROVED
+                    );
+                }
+            )
+            ->orderBy('name')
+            ->get();
 
         return view(
             'admin.bookings.booking_list',
-            compact('bookings')
+            compact(
+                'bookings',
+                'providers'
+            )
         );
     }
 
-    public function show(
-        Booking $booking
-    ): View {
+    public function show(Booking $booking): View
+    {
         $booking->load([
             'customer',
             'provider.providerProfile',

@@ -14,90 +14,120 @@ class ProviderController extends Controller
     public function index(
         Request $request
     ): View {
-        $validated =
-            $request->validate([
-                'search' => [
-                    'nullable',
-                    'string',
-                    'max:100',
-                ],
+        $validated = $request->validate([
+            'user_code' => [
+                'nullable',
+                'string',
+                'max:20',
+            ],
 
-                'verification_status' => [
-                    'nullable',
-                    'in:PENDING,APPROVED,REJECTED',
-                ],
+            'business_name' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
 
-                'provider_status' => [
-                    'nullable',
-                    'in:ACTIVE,LOCKED',
-                ],
-            ]);
+            'owner_name' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
 
-        /*
-         * Lấy TOÀN BỘ hồ sơ Provider:
-         *
-         * PENDING
-         * APPROVED
-         * REJECTED
-         *
-         * Mặc định mới nhất trước.
-         */
-        $query =
-            ProviderProfile::query()
-                ->with('user')
-                ->latest('created_at');
+            'email' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
+
+            'verification_status' => [
+                'nullable',
+                'in:PENDING,APPROVED,REJECTED',
+            ],
+
+            'provider_status' => [
+                'nullable',
+                'in:ACTIVE,LOCKED',
+            ],
+        ]);
+
+        $query = ProviderProfile::query()
+            ->with('user')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
 
         if (
             ! empty(
-                $validated['search']
+                $validated['user_code']
             )
         ) {
-            $search =
-                trim(
-                    $validated['search']
-                );
+            $userCode = trim(
+                $validated['user_code']
+            );
+
+            $query->whereHas(
+                'user',
+                fn ($userQuery) =>
+                    $userQuery->where(
+                        'user_code',
+                        'like',
+                        "%{$userCode}%"
+                    )
+            );
+        }
+
+        if (
+            ! empty(
+                $validated['business_name']
+            )
+        ) {
+            $businessName = trim(
+                $validated['business_name']
+            );
 
             $query->where(
-                function (
-                    $query
-                ) use ($search): void {
-                    $query
-                        ->where(
-                            'business_name',
-                            'like',
-                            "%{$search}%"
-                        )
-                        ->orWhereHas(
-                            'user',
-                            function (
-                                $userQuery
-                            ) use (
-                                $search
-                            ): void {
-                                $userQuery
-                                    ->where(
-                                        'name',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhere(
-                                        'email',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhere(
-                                        'phone',
-                                        'like',
-                                        "%{$search}%"
-                                    )
-                                    ->orWhere(
-                                        'id',
-                                        'like',
-                                        "%{$search}%"
-                                    );
-                            }
-                        );
-                }
+                'business_name',
+                'like',
+                "%{$businessName}%"
+            );
+        }
+
+        if (
+            ! empty(
+                $validated['owner_name']
+            )
+        ) {
+            $ownerName = trim(
+                $validated['owner_name']
+            );
+
+            $query->whereHas(
+                'user',
+                fn ($userQuery) =>
+                    $userQuery->where(
+                        'name',
+                        'like',
+                        "%{$ownerName}%"
+                    )
+            );
+        }
+
+        if (
+            ! empty(
+                $validated['email']
+            )
+        ) {
+            $email = trim(
+                $validated['email']
+            );
+
+            $query->whereHas(
+                'user',
+                fn ($userQuery) =>
+                    $userQuery->where(
+                        'email',
+                        'like',
+                        "%{$email}%"
+                    )
             );
         }
 
@@ -131,10 +161,9 @@ class ProviderController extends Controller
             );
         }
 
-        $providers =
-            $query
-                ->paginate(10)
-                ->withQueryString();
+        $providers = $query
+            ->paginate(6)
+            ->withQueryString();
 
         return view(
             'admin.providers.provider_list',
@@ -160,17 +189,12 @@ class ProviderController extends Controller
         );
     }
 
-    /*
-     * Chỉ hồ sơ PENDING mới được APPROVE.
-     */
     public function approve(
         ProviderProfile $provider
     ): RedirectResponse {
         if (
-            $provider
-                ->verification_status !==
-            ProviderProfile::
-                VERIFICATION_PENDING
+            $provider->verification_status !==
+            ProviderProfile::VERIFICATION_PENDING
         ) {
             return back()->with(
                 'error',
@@ -179,17 +203,13 @@ class ProviderController extends Controller
         }
 
         DB::transaction(
-            function () use (
-                $provider
-            ): void {
+            function () use ($provider): void {
                 $provider->update([
                     'verification_status' =>
-                        ProviderProfile::
-                            VERIFICATION_APPROVED,
+                        ProviderProfile::VERIFICATION_APPROVED,
 
                     'provider_status' =>
-                        ProviderProfile::
-                            STATUS_ACTIVE,
+                        ProviderProfile::STATUS_ACTIVE,
 
                     'verified_at' =>
                         now(),
@@ -203,18 +223,12 @@ class ProviderController extends Controller
         );
     }
 
-    /*
-     * REJECT chỉ mang ý nghĩa: từ chối hồ sơ xét duyệt.
-     * Không dùng REJECT để khóa Provider đã APPROVED.
-     */
     public function reject(
         ProviderProfile $provider
     ): RedirectResponse {
         if (
-            $provider
-                ->verification_status !==
-            ProviderProfile::
-                VERIFICATION_PENDING
+            $provider->verification_status !==
+            ProviderProfile::VERIFICATION_PENDING
         ) {
             return back()->with(
                 'error',
@@ -223,13 +237,10 @@ class ProviderController extends Controller
         }
 
         DB::transaction(
-            function () use (
-                $provider
-            ): void {
+            function () use ($provider): void {
                 $provider->update([
                     'verification_status' =>
-                        ProviderProfile::
-                            VERIFICATION_REJECTED,
+                        ProviderProfile::VERIFICATION_REJECTED,
 
                     'provider_status' =>
                         null,
@@ -246,28 +257,20 @@ class ProviderController extends Controller
         );
     }
 
-    /*
-     * Khóa / mở khóa QUYỀN PROVIDER.
-     * Không thay users.status.
-     * User vẫn sử dụng Customer mode.
-     */
     public function updateStatus(
         Request $request,
         ProviderProfile $provider
     ): RedirectResponse {
-        $validated =
-            $request->validate([
-                'provider_status' => [
-                    'required',
-                    'in:ACTIVE,LOCKED',
-                ],
-            ]);
+        $validated = $request->validate([
+            'provider_status' => [
+                'required',
+                'in:ACTIVE,LOCKED',
+            ],
+        ]);
 
         if (
-            $provider
-                ->verification_status !==
-            ProviderProfile::
-                VERIFICATION_APPROVED
+            $provider->verification_status !==
+            ProviderProfile::VERIFICATION_APPROVED
         ) {
             return back()->with(
                 'error',
@@ -275,27 +278,25 @@ class ProviderController extends Controller
             );
         }
 
+        if (
+            $provider->provider_status ===
+            $validated['provider_status']
+        ) {
+            return back()->with(
+                'error',
+                'Nhà cung cấp đã ở trạng thái này.'
+            );
+        }
+
         $provider->update([
             'provider_status' =>
-                $validated[
-                    'provider_status'
-                ],
+                $validated['provider_status'],
         ]);
 
-        /*
-         * Không đổi status của services.
-         *
-         * Public API sẽ tự ẩn services khi Provider bị LOCKED.
-         *
-         * Khi mở khóa NCC, các dịch vụ ACTIVE trước đó tự khả dụng lại.
-         */
         return back()->with(
             'success',
-            $validated[
-                'provider_status'
-            ] ===
-            ProviderProfile::
-                STATUS_LOCKED
+            $validated['provider_status'] ===
+            ProviderProfile::STATUS_LOCKED
                 ? 'Đã khóa quyền Nhà cung cấp.'
                 : 'Đã mở khóa quyền Nhà cung cấp.'
         );

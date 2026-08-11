@@ -16,54 +16,46 @@ class ServiceController extends Controller
     public function index(
         Request $request
     ): View {
-        $validated =
-            $request->validate([
-                'search' => [
-                    'nullable',
-                    'string',
-                    'max:100',
-                ],
+        $validated = $request->validate([
+            'search' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
 
-                'status' => [
-                    'nullable',
-                    'in:ACTIVE,INACTIVE',
-                ],
+            'status' => [
+                'nullable',
+                'in:ACTIVE,INACTIVE',
+            ],
 
-                'category_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:service_categories,id',
-                ],
+            'category_id' => [
+                'nullable',
+                'integer',
+                'exists:service_categories,id',
+            ],
 
-                'provider_id' => [
-                    'nullable',
-                    'integer',
-                    'exists:users,id',
-                ],
-            ]);
+            'provider_id' => [
+                'nullable',
+                'integer',
+                'exists:users,id',
+            ],
+        ]);
 
-        $query =
-            Service::query()
-                ->with([
-                    'category',
-                    'provider.providerProfile',
-                ])
-                ->latest();
+        $query = Service::query()
+            ->with([
+                'category',
+                'provider.providerProfile',
+            ])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
 
-        if (
-            ! empty(
+        if (! empty($validated['search'])) {
+            $search = trim(
                 $validated['search']
-            )
-        ) {
-            $search =
-                trim(
-                    $validated['search']
-                );
+            );
 
             $query->where(
-                function (
-                    $query
-                ) use ($search): void {
+                function ($query) use ($search): void {
                     $query
                         ->where(
                             'name',
@@ -77,11 +69,7 @@ class ServiceController extends Controller
                         )
                         ->orWhereHas(
                             'provider',
-                            function (
-                                $providerQuery
-                            ) use (
-                                $search
-                            ): void {
+                            function ($providerQuery) use ($search): void {
                                 $providerQuery
                                     ->where(
                                         'name',
@@ -92,6 +80,16 @@ class ServiceController extends Controller
                                         'email',
                                         'like',
                                         "%{$search}%"
+                                    )
+                                    ->orWhereHas(
+                                        'providerProfile',
+                                        function ($profileQuery) use ($search): void {
+                                            $profileQuery->where(
+                                                'business_name',
+                                                'like',
+                                                "%{$search}%"
+                                            );
+                                        }
                                     );
                             }
                         );
@@ -99,93 +97,58 @@ class ServiceController extends Controller
             );
         }
 
-        if (
-            ! empty(
-                $validated['status']
-            )
-        ) {
+        if (! empty($validated['status'])) {
             $query->where(
                 'status',
                 $validated['status']
             );
         }
 
-        if (
-            ! empty(
-                $validated[
-                    'category_id'
-                ]
-            )
-        ) {
+        if (! empty($validated['category_id'])) {
             $query->where(
                 'category_id',
-                $validated[
-                    'category_id'
-                ]
+                $validated['category_id']
             );
         }
 
-        if (
-            ! empty(
-                $validated[
-                    'provider_id'
-                ]
-            )
-        ) {
+        if (! empty($validated['provider_id'])) {
             $query->where(
                 'provider_id',
-                $validated[
-                    'provider_id'
-                ]
+                $validated['provider_id']
             );
         }
 
-        $services =
-            $query
-                ->paginate(10)
-                ->withQueryString();
+        $services = $query
+            ->paginate(6)
+            ->withQueryString();
 
-        $categories =
-            ServiceCategory::query()
-                ->orderByDesc(
-                    'created_at'
-                )
-                ->orderByDesc(
-                    'id'
-                )
-                ->get();
+        $categories = ServiceCategory::query()
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->get();
 
-        /*
-         * Chỉ Provider thực sự đang hoạt động mới xuất hiện trong filter Provider.
-         */
-        $providers =
-            User::query()
-                ->where(
-                    'status',
-                    'ACTIVE'
-                )
-                ->whereHas(
-                    'providerProfile',
-                    function (
-                        $query
-                    ): void {
-                        $query
-                            ->where(
-                                'verification_status',
-                                ProviderProfile::
-                                    VERIFICATION_APPROVED
-                            )
-                            ->where(
-                                'provider_status',
-                                ProviderProfile::
-                                    STATUS_ACTIVE
-                            );
-                    }
-                )
-                ->orderBy(
-                    'name'
-                )
-                ->get();
+        $providers = User::query()
+            ->with('providerProfile')
+            ->where(
+                'status',
+                'ACTIVE'
+            )
+            ->whereHas(
+                'providerProfile',
+                function ($query): void {
+                    $query
+                        ->where(
+                            'verification_status',
+                            ProviderProfile::VERIFICATION_APPROVED
+                        )
+                        ->where(
+                            'provider_status',
+                            ProviderProfile::STATUS_ACTIVE
+                        );
+                }
+            )
+            ->orderBy('name')
+            ->get();
 
         return view(
             'admin.services.service_list',
@@ -219,14 +182,29 @@ class ServiceController extends Controller
         Request $request,
         Service $service
     ): RedirectResponse {
-        $validated =
-            $request->validate([
-                'status' => [
-                    'required',
-                    'in:ACTIVE,INACTIVE',
-                ],
-            ]);
+        $validated = $request->validate([
+            'status' => [
+                'required',
+                'in:ACTIVE,INACTIVE',
+            ],
+        ]);
 
+        if (
+            $service->status ===
+            $validated['status']
+        ) {
+            return back()->with(
+                'error',
+                'Dịch vụ đã ở trạng thái này.'
+            );
+        }
+
+        /*
+         * Khi kích hoạt lại Service:
+         * - Category phải ACTIVE
+         * - User phải ACTIVE
+         * - Provider APPROVED + ACTIVE
+         */
         if (
             $validated['status'] ===
             'ACTIVE'
@@ -237,44 +215,32 @@ class ServiceController extends Controller
             ]);
 
             if (
-                $service->category ===
-                    null
-                || $service
-                    ->category
-                    ->status !==
+                $service->category === null
+                || $service->category->status !==
                     'ACTIVE'
             ) {
                 return back()->with(
                     'error',
-                    'Không thể kích hoạt vì danh mục hiện không hoạt động.'
+                    'Không thể kích hoạt vì danh mục đang bị vô hiệu.'
                 );
             }
 
             $profile =
-                $service
-                    ->provider
-                    ?->providerProfile;
+                $service->provider?->providerProfile;
 
             if (
-                $service->provider ===
-                    null
-                || $service
-                    ->provider
-                    ->status !==
+                $service->provider === null
+                || $service->provider->status !==
                     'ACTIVE'
                 || $profile === null
-                || $profile
-                    ->verification_status !==
-                    ProviderProfile::
-                        VERIFICATION_APPROVED
-                || $profile
-                    ->provider_status !==
-                    ProviderProfile::
-                        STATUS_ACTIVE
+                || $profile->verification_status !==
+                    ProviderProfile::VERIFICATION_APPROVED
+                || $profile->provider_status !==
+                    ProviderProfile::STATUS_ACTIVE
             ) {
                 return back()->with(
                     'error',
-                    'Không thể kích hoạt vì Nhà cung cấp hiện không đủ điều kiện.'
+                    'Không thể kích hoạt vì Nhà cung cấp hiện không đủ điều kiện hoạt động.'
                 );
             }
         }
@@ -286,10 +252,9 @@ class ServiceController extends Controller
 
         return back()->with(
             'success',
-            $validated['status'] ===
-                'ACTIVE'
+            $validated['status'] === 'ACTIVE'
                 ? 'Đã kích hoạt dịch vụ.'
-                : 'Đã tạm ngừng dịch vụ.'
+                : 'Đã vô hiệu dịch vụ.'
         );
     }
 }

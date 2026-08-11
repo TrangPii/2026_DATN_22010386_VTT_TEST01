@@ -60,7 +60,6 @@ textarea {
     font: inherit;
 }
 
-
 /* =========================================================
    ADMIN LAYOUT
    ========================================================= */
@@ -125,7 +124,6 @@ textarea {
     padding: 28px;
 }
 
-
 /* =========================================================
    PAGE TITLE
    ========================================================= */
@@ -165,6 +163,41 @@ textarea {
     line-height: 1.5;
 }
 
+/* =========================================================
+   DASHBOARD
+   ========================================================= */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    padding: 18px 20px;
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.stat-label {
+    margin-bottom: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stat-value {
+    color: var(--text);
+    font-size: 26px;
+    line-height: 1.15;
+    font-weight: 700;
+}
+
+.dashboard-booking-table {
+    min-width: 900px;
+}
 
 /* =========================================================
    COMMON CARD
@@ -207,7 +240,6 @@ textarea {
     display: flex;
     align-items: center;
     gap: 10px;
-    border-bottom: 1px solid var(--border);
 }
 
 .admin-table-header2 {
@@ -235,6 +267,48 @@ textarea {
     font-size: 12px;
     font-weight: 600;
     line-height: 1;
+}
+
+/* =========================================================
+   TABLE SCROLL
+   ========================================================= */
+
+.admin-table-scroll {
+    width: 100%;
+    max-width: 100%;
+
+    overflow-x: auto;
+    overflow-y: hidden;
+
+    -webkit-overflow-scrolling: touch;
+
+    scrollbar-width: thin;
+    scrollbar-color:
+        var(--border) transparent;
+}
+
+.admin-data-table {
+    width: 100%;
+    min-width: 1200px;
+
+    border-collapse: collapse;
+}
+
+.admin-table-scroll::-webkit-scrollbar {
+    height: 8px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 999px;
+}
+
+.admin-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
 }
 
 /* =========================================================
@@ -334,6 +408,71 @@ textarea {
         0 0 0 3px rgba(37, 99, 235, 0.10);
 }
 
+.admin-form-body {
+    padding: 18px 20px;
+}
+
+.admin-form-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(2, minmax(0, 1fr));
+
+    gap: 16px 20px;
+}
+
+.admin-form-grid .form-group {
+    margin: 0;
+}
+
+.admin-form-field-wide {
+    grid-column: 1 / -1;
+}
+
+.form-control-textarea {
+    min-height: 110px;
+    resize: vertical;
+
+    line-height: 1.5;
+}
+
+.form-readonly-value {
+    min-height: 40px;
+
+    padding: 9px 12px;
+
+    display: flex;
+    align-items: center;
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+
+    background: var(--soft-gray);
+    color: var(--text);
+
+    font-size: 13px;
+}
+
+.admin-form-actions {
+    margin-top: 18px;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-error-list {
+    margin: 8px 0 0;
+    padding-left: 20px;
+}
+
+.filter-combobox-input {
+    cursor: text;
+}
+
+.filter-combobox-input::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
 
 /* =========================================================
    COMMON FILTER
@@ -481,6 +620,11 @@ textarea {
     white-space: nowrap;
 }
 
+.table-price {
+    min-width: 135px;
+    white-space: nowrap;
+}
+
 .table-status {
     min-width: 100px;
     white-space: nowrap;
@@ -581,6 +725,19 @@ td {
     color: #991b1b;
 }
 
+.status-badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.table-link {
+    color: #000;
+    font-weight: 700;
+}
+
+.table-link:hover {
+    text-decoration: underline;
+}
 
 /* =========================================================
    ACTIONS
@@ -964,4 +1121,85 @@ td {
         flex-direction: column;
         align-items: flex-start;
     }
+}
+
+@media (max-width: 640px) {
+    .admin-form-body {
+        padding: 16px;
+    }
+
+    .admin-form-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .admin-form-field-wide {
+        grid-column: auto;
+    }
+
+    .admin-form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+@media (max-width: 800px) {
+    .admin-detail-field-wide {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 1100px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-value {
+        font-size: 24px;
+    }
+}
+
+.detail-grid-padding {
+    padding: 18px 20px;
+}
+
+.detail-description {
+    margin: 0 20px 20px;
+    padding: 16px;
+
+    background: var(--surface);
+
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+}
+
+.admin-detail-actions {
+    padding: 18px 20px;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.admin-detail-actions form {
+    margin: 0;
+}
+
+.admin-detail-field-wide {
+    grid-column: 1 / -1;
+}
+
+.admin-history-table {
+    min-width: 850px;
 }

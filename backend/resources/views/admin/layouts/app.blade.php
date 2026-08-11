@@ -42,35 +42,35 @@
                 href="{{ route('admin.users.index') }}"
                 class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}"
             >
-                Người dùng
+                Quản lý người dùng
             </a>
 
             <a
                 href="{{ route('admin.providers.index') }}"
                 class="{{ request()->routeIs('admin.providers.*')? 'active': '' }}"
             >
-                Nhà cung cấp
+                Quản lý nhà cung cấp
             </a>
 
             <a
                 href="{{ route('admin.categories.index') }}"
                 class="{{ request()->routeIs('admin.categories.*')? 'active': '' }}"
             >
-                Danh mục dịch vụ
+                Quản lý danh mục
             </a>
 
             <a 
                 href="{{ route('admin.services.index') }}"
                 class="{{ request()->routeIs('admin.services.*')? 'active': '' }}"
             >
-                Dịch vụ
+                Quản lý dịch vụ
             </a>
 
             <a 
                 href="{{ route('admin.bookings.index') }}"
                 class="{{ request()->routeIs('admin.bookings.*')? 'active': '' }}"
             >
-                Booking
+                Quản lý đơn hàng
             </a>
 
         </nav>

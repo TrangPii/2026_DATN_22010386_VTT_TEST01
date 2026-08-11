@@ -16,45 +16,34 @@ class CategoryController extends Controller
     public function index(
         Request $request
     ): View {
-        $validated =
-            $request->validate([
-                'search' => [
-                    'nullable',
-                    'string',
-                    'max:100',
-                ],
+        $validated = $request->validate([
+            'search' => [
+                'nullable',
+                'string',
+                'max:100',
+            ],
 
-                'status' => [
-                    'nullable',
-                    'in:ACTIVE,INACTIVE',
-                ],
+            'status' => [
+                'nullable',
+                'in:ACTIVE,INACTIVE',
+            ],
 
-                'sort' => [
-                    'nullable',
-                    'in:newest,services_asc,services_desc',
-                ],
-            ]);
+            'sort' => [
+                'nullable',
+                'in:newest,services_asc,services_desc',
+            ],
+        ]);
 
-        $query =
-            ServiceCategory::query()
-                ->withCount(
-                    'services'
-                );
+        $query = ServiceCategory::query()
+            ->withCount('services');
 
-        if (
-            ! empty(
+        if (! empty($validated['search'])) {
+            $search = trim(
                 $validated['search']
-            )
-        ) {
-            $search =
-                trim(
-                    $validated['search']
-                );
+            );
 
             $query->where(
-                function (
-                    $query
-                ) use ($search): void {
+                function ($query) use ($search): void {
                     $query
                         ->where(
                             'name',
@@ -70,20 +59,15 @@ class CategoryController extends Controller
             );
         }
 
-        if (
-            ! empty(
-                $validated['status']
-            )
-        ) {
+        if (! empty($validated['status'])) {
             $query->where(
                 'status',
                 $validated['status']
             );
         }
 
-        $sort =
-            $validated['sort']
-                ?? 'newest';
+        $sort = $validated['sort']
+            ?? 'newest';
 
         switch ($sort) {
             case 'services_asc':
@@ -92,12 +76,8 @@ class CategoryController extends Controller
                         'services_count',
                         'asc'
                     )
-                    ->orderByDesc(
-                        'created_at'
-                    )
-                    ->orderByDesc(
-                        'id'
-                    );
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id');
 
                 break;
 
@@ -106,32 +86,23 @@ class CategoryController extends Controller
                     ->orderByDesc(
                         'services_count'
                     )
-                    ->orderByDesc(
-                        'created_at'
-                    )
-                    ->orderByDesc(
-                        'id'
-                    );
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id');
 
                 break;
 
             case 'newest':
             default:
                 $query
-                    ->orderByDesc(
-                        'created_at'
-                    )
-                    ->orderByDesc(
-                        'id'
-                    );
+                    ->orderByDesc('created_at')
+                    ->orderByDesc('id');
 
                 break;
         }
 
-        $categories =
-            $query
-                ->paginate(10)
-                ->withQueryString();
+        $categories = $query
+            ->paginate(6)
+            ->withQueryString();
 
         return view(
             'admin.categories.category_list',
@@ -154,25 +125,20 @@ class CategoryController extends Controller
 
         ServiceCategory::create([
             'name' =>
-                trim(
+                trim($validated['name']),
+
+            'slug' =>
+                $this->generateUniqueSlug(
                     $validated['name']
                 ),
 
-            'slug' =>
-                $this
-                    ->generateUniqueSlug(
-                        $validated['name']
-                    ),
-
             'description' =>
-                $validated[
-                    'description'
-                ] ?? null,
+                $validated['description']
+                ?? null,
 
             'image' =>
-                $validated[
-                    'image'
-                ] ?? null,
+                $validated['image']
+                ?? null,
 
             'status' =>
                 'ACTIVE',
@@ -205,25 +171,18 @@ class CategoryController extends Controller
             $request->validated();
 
         if (
-            isset(
-                $validated['name']
-            )
-            && trim(
-                $validated['name']
-            ) !==
+            isset($validated['name'])
+            && trim($validated['name']) !==
                 $category->name
         ) {
             $validated['name'] =
-                trim(
-                    $validated['name']
-                );
+                trim($validated['name']);
 
             $validated['slug'] =
-                $this
-                    ->generateUniqueSlug(
-                        $validated['name'],
-                        $category->id
-                    );
+                $this->generateUniqueSlug(
+                    $validated['name'],
+                    $category->id
+                );
         }
 
         $category->update(
@@ -252,6 +211,16 @@ class CategoryController extends Controller
                 ],
             ]);
 
+        if (
+            $category->status ===
+            $validated['status']
+        ) {
+            return back()->with(
+                'error',
+                'Danh mục đã ở trạng thái này.'
+            );
+        }
+
         $category->update([
             'status' =>
                 $validated['status'],
@@ -262,7 +231,7 @@ class CategoryController extends Controller
             $validated['status'] ===
                 'ACTIVE'
                 ? 'Đã kích hoạt danh mục.'
-                : 'Đã tạm ngừng danh mục.'
+                : 'Đã vô hiệu danh mục.'
         );
     }
 
@@ -275,9 +244,7 @@ class CategoryController extends Controller
                 trim($name)
             );
 
-        if (
-            $baseSlug === ''
-        ) {
+        if ($baseSlug === '') {
             $baseSlug =
                 'category';
         }
