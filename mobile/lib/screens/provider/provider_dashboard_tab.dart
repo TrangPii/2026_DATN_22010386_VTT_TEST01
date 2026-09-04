@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/provider_booking_service.dart';
 import '../../services/provider_service_api.dart';
 import 'provider_booking_detail_screen.dart';
+import '../../widgets/notification_bell_button.dart';
 
 class ProviderDashboardTab extends StatefulWidget {
   const ProviderDashboardTab({super.key});
@@ -186,6 +187,9 @@ class _ProviderDashboardTabState extends State<ProviderDashboardTab> {
                       ],
                     ),
                   ),
+                  SizedBox(width: 6.rw(context)),
+
+                  const NotificationBellButton(audience: 'PROVIDER'),
                 ],
               ),
             ),

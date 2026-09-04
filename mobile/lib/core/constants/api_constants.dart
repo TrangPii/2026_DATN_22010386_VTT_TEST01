@@ -25,4 +25,6 @@ class ApiConstants {
   static const String providerBookings = '/provider/bookings';
   static const String providerServices = '/provider/services';
   static const String providerProfile = '/provider/profile';
+
+  static const String notifications = '/notifications';
 }

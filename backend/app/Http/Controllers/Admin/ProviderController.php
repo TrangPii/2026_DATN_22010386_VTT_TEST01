@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ProviderProfile;
+use App\Notifications\SystemNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -217,6 +218,31 @@ class ProviderController extends Controller
             }
         );
 
+        $provider->loadMissing(
+            'user'
+        );
+
+        $provider
+            ->user
+            ?->notify(
+                new SystemNotification(
+                    type:
+                        'PROVIDER_APPLICATION_APPROVED',
+
+                    title:
+                        'Hồ sơ Nhà cung cấp',
+
+                    message:
+                        'Hồ sơ đăng ký Nhà cung cấp của bạn đã được phê duyệt.',
+
+                    audience:
+                        'CUSTOMER',
+
+                    target:
+                        'PROVIDER_APPLICATION',
+                )
+            );
+
         return back()->with(
             'success',
             'Đã phê duyệt Nhà cung cấp.'
@@ -250,6 +276,31 @@ class ProviderController extends Controller
                 ]);
             }
         );
+
+        $provider->loadMissing(
+            'user'
+        );
+
+        $provider
+            ->user
+            ?->notify(
+                new SystemNotification(
+                    type:
+                        'PROVIDER_APPLICATION_REJECTED',
+
+                    title:
+                        'Hồ sơ Nhà cung cấp',
+
+                    message:
+                        'Hồ sơ đăng ký Nhà cung cấp của bạn chưa được phê duyệt.',
+                        
+                    audience:
+                        'CUSTOMER',
+
+                    target:
+                        'PROVIDER_APPLICATION',
+                )
+            );
 
         return back()->with(
             'success',

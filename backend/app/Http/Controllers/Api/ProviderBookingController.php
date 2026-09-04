@@ -7,6 +7,7 @@ use App\Http\Requests\Booking\RejectBookingRequest;
 use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\BookingStatusHistory;
+use App\Notifications\SystemNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -261,19 +262,124 @@ class ProviderBookingController extends Controller
                 $additionalData
             ): void {
                 $booking->update([
-                    'status' => $newStatus,
+                    'status' =>
+                        $newStatus,
+
                     ...$additionalData,
                 ]);
 
                 BookingStatusHistory::create([
-                    'booking_id' => $booking->id,
-                    'changed_by' => $userId,
-                    'old_status' => $oldStatus,
-                    'new_status' => $newStatus,
-                    'note' => $note,
+                    'booking_id' =>
+                        $booking->id,
+
+                    'changed_by' =>
+                        $userId,
+
+                    'old_status' =>
+                        $oldStatus,
+
+                    'new_status' =>
+                        $newStatus,
+
+                    'note' =>
+                        $note,
                 ]);
             }
         );
+
+        $this->notifyCustomer(
+            $booking,
+            $newStatus
+        );
+    }
+
+    private function notifyCustomer(
+        Booking $booking,
+        string $status
+    ): void {
+        $contents = [
+            'ACCEPTED' => [
+                'title' =>
+                    'Đơn hàng đã được xác nhận',
+
+                'message' =>
+                    'Nhà cung cấp đã chấp nhận đơn '
+                    . $booking->booking_code
+                    . '.',
+            ],
+
+            'REJECTED' => [
+                'title' =>
+                    'Đơn hàng bị từ chối',
+
+                'message' =>
+                    'Nhà cung cấp đã từ chối đơn '
+                    . $booking->booking_code
+                    . '.',
+            ],
+
+            'IN_PROGRESS' => [
+                'title' =>
+                    'Dịch vụ đang được thực hiện',
+
+                'message' =>
+                    'Nhà cung cấp đã bắt đầu thực hiện đơn '
+                    . $booking->booking_code
+                    . '.',
+            ],
+
+            'COMPLETED' => [
+                'title' =>
+                    'Dịch vụ đã hoàn thành',
+
+                'message' =>
+                    'Đơn '
+                    . $booking->booking_code
+                    . ' đã được hoàn thành.',
+            ],
+        ];
+
+        $content =
+            $contents[$status]
+            ?? null;
+
+        if ($content === null) {
+            return;
+        }
+
+        $booking->loadMissing(
+            'customer'
+        );
+
+        $booking
+            ->customer
+            ?->notify(
+                new SystemNotification(
+                    type:
+                        'BOOKING_STATUS_CHANGED',
+
+                    title:
+                        $content['title'],
+
+                    message:
+                        $content['message'],
+
+                    audience:
+                        'CUSTOMER',
+
+                    target:
+                        'CUSTOMER_BOOKING_DETAIL',
+
+                    bookingId:
+                        $booking->id,
+
+                    bookingCode:
+                        $booking->booking_code,
+
+                    status:
+                        $status,
+                )
+            );
     }
 
     private function invalidStatus(): JsonResponse

@@ -10,6 +10,7 @@ use App\Models\Booking;
 use App\Models\BookingStatusHistory;
 use App\Models\ProviderProfile;
 use App\Models\Service;
+use App\Notifications\SystemNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -302,6 +303,35 @@ class BookingController extends Controller
                 }
             );
 
+            $provider->notify(
+                new SystemNotification(
+                    type:
+                        'BOOKING_CREATED',
+
+                    title:
+                        'Bạn có đơn hàng mới',
+
+                    message:
+                        'Khách hàng vừa đặt dịch vụ "'
+                        . $booking->service_name
+                        . '".',
+                    audience:
+                        'PROVIDER',
+
+                    target:
+                        'PROVIDER_BOOKING_DETAIL',
+
+                    bookingId:
+                        $booking->id,
+
+                    bookingCode:
+                        $booking->booking_code,
+
+                    status:
+                        $booking->status,
+                )
+            );
+
         $booking->load([
             'customer',
             'provider.providerProfile',
@@ -451,6 +481,42 @@ class BookingController extends Controller
                     ]);
             }
         );
+
+        $booking->loadMissing(
+            'provider'
+        );
+
+        $booking
+            ->provider
+            ?->notify(
+                new SystemNotification(
+                    type:
+                        'BOOKING_CANCELLED_BY_CUSTOMER',
+
+                    title:
+                        'Khách hàng đã hủy đơn',
+
+                    message:
+                        'Khách hàng đã hủy đơn '
+                        . $booking->booking_code
+                        . '.',
+
+                    audience:
+                        'PROVIDER',
+
+                    target:
+                        'PROVIDER_BOOKING_DETAIL',
+
+                    bookingId:
+                        $booking->id,
+
+                    bookingCode:
+                        $booking->booking_code,
+
+                    status:
+                        'CANCELLED',
+                )
+            );
 
         $booking->load([
             'customer',

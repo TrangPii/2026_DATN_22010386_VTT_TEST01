@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\ProviderApplicationController;
 use App\Http\Controllers\Api\ProviderServiceController;
 use App\Http\Controllers\Api\ProviderProfileController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\Admin\AdminBookingController;
 use App\Http\Controllers\Api\Admin\AdminCategoryController;
 use App\Http\Controllers\Api\Admin\AdminDashboardController;
@@ -71,6 +72,44 @@ Route::get(
     '/services/{service}',
     [ServiceController::class, 'show']
 );
+
+// In-app notifications
+Route::middleware(
+    'auth:sanctum'
+)->group(function (): void {
+
+    Route::get(
+        '/notifications',
+        [
+            NotificationController::class,
+            'index',
+        ]
+    );
+
+    Route::get(
+        '/notifications/unread-count',
+        [
+            NotificationController::class,
+            'unreadCount',
+        ]
+    );
+
+    Route::patch(
+        '/notifications/read-all',
+        [
+            NotificationController::class,
+            'markAllAsRead',
+        ]
+    );
+
+    Route::patch(
+        '/notifications/{notification}/read',
+        [
+            NotificationController::class,
+            'markAsRead',
+        ]
+    );
+});
 
 // Customer Booking
 Route::middleware('auth:sanctum')->group(

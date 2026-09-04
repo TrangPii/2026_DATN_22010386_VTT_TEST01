@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/catalog_service.dart';
 import 'service_detail_screen.dart';
 import 'customer_service_list_screen.dart';
+import '../../widgets/notification_bell_button.dart';
 
 class CustomerHomeTab extends StatefulWidget {
   const CustomerHomeTab({super.key});
@@ -332,6 +333,9 @@ class _HomeHeader extends StatelessWidget {
                   ],
                 ),
               ),
+              SizedBox(width: 6.rw(context)),
+
+              const NotificationBellButton(audience: 'CUSTOMER'),
             ],
           ),
 
