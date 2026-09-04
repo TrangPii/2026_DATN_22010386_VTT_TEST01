@@ -615,7 +615,9 @@ class _ServiceThumbnail extends StatelessWidget {
             : Image.network(
                 imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) {
+                errorBuilder: (context, error, stackTrace) {
+                  debugPrint('CUSTOMER IMAGE ERROR: $error');
+                  debugPrint('CUSTOMER IMAGE URL: $imageUrl');
                   return Container(
                     color: AppColors.softGray,
                     alignment: Alignment.center,

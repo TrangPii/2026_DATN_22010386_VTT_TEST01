@@ -632,7 +632,10 @@ class _ProviderServiceThumbnail extends StatelessWidget {
                 ? Image.network(
                     imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) {
+                    errorBuilder: (context, error, stackTrace) {
+                      debugPrint('PROVIDER IMAGE ERROR: $error');
+                      debugPrint('PROVIDER IMAGE URL: $imageUrl');
+
                       return _fallback(context);
                     },
                   )
