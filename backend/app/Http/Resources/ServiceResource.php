@@ -21,7 +21,10 @@ class ServiceResource extends JsonResource
             'estimated_duration_minutes' =>
                 $this->estimated_duration_minutes,
 
-            'image' => $this->image ? $request->getSchemeAndHttpHost(). Storage::url($this->image): null,
+            'image' => $this->image
+                ? Storage::url($this->image)
+                : null,
+                
             'status' => $this->status,
 
             'category' => $this->whenLoaded(

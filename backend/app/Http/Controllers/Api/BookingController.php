@@ -198,12 +198,12 @@ class BookingController extends Controller
         $unitPrice =
             $service->price;
 
-        $totalAmount =
-            bcmul(
-                (string) $unitPrice,
-                (string) $quantity,
-                2
-            );
+        $totalAmount = number_format(
+            (float) $unitPrice * (int) $quantity,
+            2,
+            '.',
+            ''
+        );
 
         $booking =
             DB::transaction(
