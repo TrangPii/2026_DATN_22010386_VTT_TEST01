@@ -12,6 +12,7 @@ use App\Models\ServiceCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
 
 class ProviderServiceController extends Controller
 {
@@ -179,6 +180,17 @@ class ProviderServiceController extends Controller
             $validated['name']
         );
 
+        $imagePath = null;
+
+        if ($request->hasFile('image')) {
+            $imagePath = $request
+                ->file('image')
+                ->store(
+                    'services',
+                    'public'
+                );
+        }
+
         $service = Service::create([
             'category_id' =>
                 $validated['category_id'],
@@ -207,7 +219,7 @@ class ProviderServiceController extends Controller
                 ] ?? null,
 
             'image' =>
-                $validated['image'] ?? null,
+                $imagePath,
 
             'status' =>
                 'ACTIVE',
@@ -268,7 +280,30 @@ class ProviderServiceController extends Controller
                 );
         }
 
+        $oldImage = $service->image;
+        $newImagePath = null;
+
+        if ($request->hasFile('image')) {
+            $newImagePath = $request
+                ->file('image')
+                ->store(
+                    'services',
+                    'public'
+                );
+
+            $validated['image'] =
+                $newImagePath;
+        }
+
         $service->update($validated);
+        
+        if (
+            $newImagePath !== null
+            && $oldImage
+        ) {
+            Storage::disk('public')
+                ->delete($oldImage);
+        }
 
         $service->load([
             'category',

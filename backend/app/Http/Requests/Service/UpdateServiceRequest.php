@@ -62,8 +62,9 @@ class UpdateServiceRequest extends FormRequest
             'image' => [
                 'sometimes',
                 'nullable',
-                'string',
-                'max:255',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:4096',
             ],
         ];
     }

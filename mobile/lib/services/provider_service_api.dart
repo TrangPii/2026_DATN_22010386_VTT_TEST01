@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../core/constants/api_constants.dart';
 import '../core/network/api_client.dart';
 import '../models/service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class ProviderServiceException implements Exception {
   final String message;
@@ -78,20 +79,37 @@ class ProviderServiceApi {
     required double price,
     required String priceUnit,
     int? estimatedDurationMinutes,
-    String? image,
+    XFile? image,
   }) async {
-    final response = await ApiClient.post(
+    final fields = <String, String>{
+      'category_id': categoryId.toString(),
+
+      'name': name.trim(),
+
+      'price': price.toString(),
+
+      'price_unit': priceUnit.trim(),
+    };
+
+    if (description != null && description.trim().isNotEmpty) {
+      fields['description'] = description.trim();
+    }
+
+    if (estimatedDurationMinutes != null) {
+      fields['estimated_duration_minutes'] = estimatedDurationMinutes
+          .toString();
+    }
+
+    final imageBytes = image != null ? await image.readAsBytes() : null;
+
+    final response = await ApiClient.multipart(
+      'POST',
       ApiConstants.providerServices,
       authenticated: true,
-      body: {
-        'category_id': categoryId,
-        'name': name.trim(),
-        'description': description?.trim(),
-        'price': price,
-        'price_unit': priceUnit.trim(),
-        'estimated_duration_minutes': estimatedDurationMinutes,
-        'image': image?.trim(),
-      },
+      fields: fields,
+      fileField: image != null ? 'image' : null,
+      fileBytes: imageBytes,
+      fileName: image?.name,
     );
 
     final data = jsonDecode(response.body);
@@ -113,20 +131,39 @@ class ProviderServiceApi {
     required double price,
     required String priceUnit,
     int? estimatedDurationMinutes,
-    String? image,
+    XFile? image,
   }) async {
-    final response = await ApiClient.put(
+    final fields = <String, String>{
+      '_method': 'PUT',
+
+      'category_id': categoryId.toString(),
+
+      'name': name.trim(),
+
+      'price': price.toString(),
+
+      'price_unit': priceUnit.trim(),
+    };
+
+    if (description != null && description.trim().isNotEmpty) {
+      fields['description'] = description.trim();
+    }
+
+    if (estimatedDurationMinutes != null) {
+      fields['estimated_duration_minutes'] = estimatedDurationMinutes
+          .toString();
+    }
+
+    final imageBytes = image != null ? await image.readAsBytes() : null;
+
+    final response = await ApiClient.multipart(
+      'POST',
       '${ApiConstants.providerServices}/$id',
       authenticated: true,
-      body: {
-        'category_id': categoryId,
-        'name': name.trim(),
-        'description': description?.trim(),
-        'price': price,
-        'price_unit': priceUnit.trim(),
-        'estimated_duration_minutes': estimatedDurationMinutes,
-        'image': image?.trim(),
-      },
+      fields: fields,
+      fileField: image != null ? 'image' : null,
+      fileBytes: imageBytes,
+      fileName: image?.name,
     );
 
     final data = jsonDecode(response.body);

@@ -55,8 +55,9 @@ class StoreServiceRequest extends FormRequest
 
             'image' => [
                 'nullable',
-                'string',
-                'max:255',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:4096',
             ],
         ];
     }
@@ -78,6 +79,13 @@ class StoreServiceRequest extends FormRequest
 
             'estimated_duration_minutes.min' =>
                 'Thời gian dự kiến phải lớn hơn 0 phút.',
+
+            'image.image' =>
+                'Tệp tải lên phải là hình ảnh.',
+            'image.mimes' =>
+                'Ảnh chỉ hỗ trợ định dạng JPG, JPEG, PNG hoặc WEBP.',
+            'image.max' =>
+                'Dung lượng ảnh tối đa là 4 MB.',
         ];
     }
 }

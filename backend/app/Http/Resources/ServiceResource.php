@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Facades\Storage;
 
 class ServiceResource extends JsonResource
 {
@@ -20,7 +21,7 @@ class ServiceResource extends JsonResource
             'estimated_duration_minutes' =>
                 $this->estimated_duration_minutes,
 
-            'image' => $this->image,
+            'image' => $this->image ? $request->getSchemeAndHttpHost(). Storage::url($this->image): null,
             'status' => $this->status,
 
             'category' => $this->whenLoaded(

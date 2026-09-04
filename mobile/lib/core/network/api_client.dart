@@ -88,4 +88,41 @@ class ApiClient {
       body: body != null ? jsonEncode(body) : null,
     );
   }
+
+  static Future<http.Response> multipart(
+    String method,
+    String endpoint, {
+    Map<String, String>? fields,
+    String? fileField,
+    List<int>? fileBytes,
+    String? fileName,
+    bool authenticated = false,
+  }) async {
+    final request = http.MultipartRequest(method, _uri(endpoint));
+
+    final headers = await _headers(authenticated: authenticated);
+
+    // MultipartRequest phải tự sinh boundary.
+    headers.remove('Content-Type');
+
+    request.headers.addAll(headers);
+
+    if (fields != null) {
+      request.fields.addAll(fields);
+    }
+
+    if (fileField != null && fileBytes != null) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          fileField,
+          fileBytes,
+          filename: fileName ?? 'image.jpg',
+        ),
+      );
+    }
+
+    final streamedResponse = await request.send();
+
+    return http.Response.fromStream(streamedResponse);
+  }
 }

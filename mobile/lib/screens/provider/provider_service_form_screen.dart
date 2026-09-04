@@ -6,6 +6,8 @@ import '../../models/service.dart';
 import '../../models/service_category.dart';
 import '../../services/catalog_service.dart';
 import '../../services/provider_service_api.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:typed_data';
 
 class ProviderServiceFormScreen extends StatefulWidget {
   final Service? service;
@@ -31,7 +33,9 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
   final _priceController = TextEditingController();
   final _priceUnitController = TextEditingController(text: 'lần');
   final _durationController = TextEditingController();
-  final _imageController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _selectedImage;
+  String? _existingImageUrl;
 
   List<ServiceCategory> _categories = [];
 
@@ -59,9 +63,9 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
       _durationController.text =
           service.estimatedDurationMinutes?.toString() ?? '';
 
-      _imageController.text = service.image ?? '';
-
       _categoryId = service.category?.id;
+
+      _existingImageUrl = service.image;
     }
 
     for (final controller in [
@@ -70,7 +74,6 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
       _priceController,
       _priceUnitController,
       _durationController,
-      _imageController,
     ]) {
       controller.addListener(() {
         if (!_hasChanges && mounted) {
@@ -91,7 +94,6 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
     _priceController.dispose();
     _priceUnitController.dispose();
     _durationController.dispose();
-    _imageController.dispose();
 
     super.dispose();
   }
@@ -122,6 +124,23 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
         });
       }
     }
+  }
+
+  Future<void> _pickImage() async {
+    final image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 1600,
+    );
+
+    if (image == null || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _selectedImage = image;
+      _hasChanges = true;
+    });
   }
 
   Future<void> _submit() async {
@@ -157,7 +176,7 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
           price: price,
           priceUnit: _priceUnitController.text,
           estimatedDurationMinutes: duration,
-          image: _imageController.text,
+          image: _selectedImage,
         );
       } else {
         await _serviceApi.createService(
@@ -167,7 +186,7 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
           price: price,
           priceUnit: _priceUnitController.text,
           estimatedDurationMinutes: duration,
-          image: _imageController.text,
+          image: _selectedImage,
         );
       }
 
@@ -248,6 +267,35 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
     return result ?? false;
   }
 
+  Widget _buildImagePreview(BuildContext context) {
+    if (_selectedImage != null) {
+      return FutureBuilder<List<int>>(
+        future: _selectedImage!.readAsBytes(),
+
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return Image.memory(
+            Uint8List.fromList(snapshot.data!),
+            fit: BoxFit.cover,
+          );
+        },
+      );
+    }
+
+    if (_existingImageUrl != null && _existingImageUrl!.isNotEmpty) {
+      return Image.network(
+        _existingImageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _imagePlaceholder(context),
+      );
+    }
+
+    return _imagePlaceholder(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -300,43 +348,33 @@ class _ProviderServiceFormScreenState extends State<ProviderServiceFormScreen> {
 
                           SizedBox(height: 14.rw(context)),
 
-                          if (_imageController.text.trim().isNotEmpty)
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                14.rr(context),
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 16 / 8,
-                                child: Image.network(
-                                  _imageController.text.trim(),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      _imagePlaceholder(context),
-                                ),
-                              ),
-                            )
-                          else
-                            AspectRatio(
-                              aspectRatio: 16 / 7,
-                              child: _imagePlaceholder(context),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14.rr(context)),
+                            child: AspectRatio(
+                              aspectRatio: 16 / 8,
+                              child: _buildImagePreview(context),
                             ),
+                          ),
 
                           SizedBox(height: 14.rw(context)),
 
-                          TextFormField(
-                            controller: _imageController,
-                            keyboardType: TextInputType.url,
-                            decoration: const InputDecoration(
-                              labelText: 'URL hình ảnh',
-                              hintText: 'https://...',
-                              prefixIcon: Icon(Icons.image_outlined),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _isSubmitting ? null : _pickImage,
+                              icon: const Icon(Icons.photo_library_outlined),
+                              label: Text(
+                                _selectedImage == null
+                                    ? 'Chọn ảnh từ thư viện'
+                                    : 'Chọn ảnh khác',
+                              ),
                             ),
                           ),
 
                           SizedBox(height: 7.rw(context)),
 
                           Text(
-                            'Hiện tại hệ thống sử dụng URL hình ảnh.',
+                            'Hỗ trợ JPG, JPEG, PNG, WEBP. Dung lượng tối đa 4 MB.',
                             style: TextStyle(
                               fontSize: 12.rf(context),
                               color: AppColors.textSecondary,

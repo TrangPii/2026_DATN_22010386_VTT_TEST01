@@ -5,7 +5,8 @@ class ApiConstants {
   //static const String baseUrl = 'http://127.0.0.1:8000/api';
 
   // chạy trên điện thoại android
-  static const String baseUrl = 'http://192.168.22.213:8000/api';
+  static const String baseUrl =
+      'http://192.168.22.28:8000/api'; //192.168.22.28 là IPv4 của mạng, nếu connect mạng khác cần tim 'ipconfig' để set lại
 
   // chạy trên emulator Android Studio
   //static const String baseUrl = 'http://10.0.2.2:8000/api';
