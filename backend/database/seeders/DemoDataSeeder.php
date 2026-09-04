@@ -173,22 +173,18 @@ class DemoDataSeeder extends Seeder
             'cleaning' => [
                 'name' => 'Vệ sinh nhà cửa',
                 'description' => 'Các dịch vụ vệ sinh nhà ở và căn hộ.',
-                'display_order' => 1,
             ],
             'repair' => [
                 'name' => 'Sửa chữa gia đình',
                 'description' => 'Sửa chữa điện, nước và thiết bị trong nhà.',
-                'display_order' => 2,
             ],
             'beauty' => [
                 'name' => 'Làm đẹp tại nhà',
                 'description' => 'Các dịch vụ chăm sóc cá nhân và làm đẹp.',
-                'display_order' => 3,
             ],
             'education' => [
                 'name' => 'Giáo dục tại nhà',
                 'description' => 'Gia sư và hỗ trợ học tập tại nhà.',
-                'display_order' => 4,
             ],
         ];
 
