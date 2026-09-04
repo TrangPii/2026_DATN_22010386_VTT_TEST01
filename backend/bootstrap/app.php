@@ -11,20 +11,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    // ->withMiddleware(function (Middleware $middleware): void {
-    //     $middleware->alias([
-    //         'admin' => \App\Http\Middleware\EnsureAdmin::class,
-    //         'admin.web' => \App\Http\Middleware\EnsureAdminWeb::class,
-
-    //         'provider.approved' => \App\Http\Middleware\EnsureApprovedProvider::class,
-    //     ]);
-
-    //     $middleware->redirectGuestsTo(
-    //         fn () => route('admin.login')
-    //     );
-    // })
-
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'admin.web' => \App\Http\Middleware\EnsureAdminWeb::class,
+
+            'provider.approved' => \App\Http\Middleware\EnsureApprovedProvider::class,
+        ]);
+
+        $middleware->redirectGuestsTo(
+            fn () => route('admin.login')
+        );
+
         $middleware->trustProxies(
             at: '*',
         );
