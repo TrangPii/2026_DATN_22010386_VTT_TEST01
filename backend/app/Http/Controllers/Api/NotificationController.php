@@ -49,6 +49,22 @@ class NotificationController extends Controller
                 ?? 20
             );
 
+        $unreadQuery =
+            $request
+                ->user()
+                ->unreadNotifications();
+
+        if (
+            ! empty(
+                $validated['audience']
+            )
+        ) {
+            $unreadQuery->where(
+                'data->audience',
+                $validated['audience']
+            );
+        }
+
         $items =
             collect(
                 $notifications->items()
@@ -123,10 +139,7 @@ class NotificationController extends Controller
                     $items,
 
                 'unread_count' =>
-                    $request
-                        ->user()
-                        ->unreadNotifications()
-                        ->count(),
+                    $unreadQuery->count(),
 
                 'pagination' => [
                     'current_page' =>
@@ -177,7 +190,8 @@ class NotificationController extends Controller
         }
 
         return response()->json([
-            'success' => true,
+            'success' =>
+                true,
 
             'data' => [
                 'unread_count' =>
@@ -234,7 +248,8 @@ class NotificationController extends Controller
             ]);
 
         return response()->json([
-            'success' => true,
+            'success' =>
+                true,
 
             'message' =>
                 'Đã đọc tất cả thông báo.',
