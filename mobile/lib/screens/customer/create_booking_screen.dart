@@ -71,6 +71,61 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     }
   }
 
+  Future<void> _pickTime() async {
+    final initialTime = _timeController.text.isNotEmpty
+        ? _parseTime(_timeController.text)
+        : const TimeOfDay(hour: 8, minute: 0);
+
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+      helpText: 'CHỌN THỜI GIAN',
+      cancelText: 'HỦY',
+      confirmText: 'XÁC NHẬN',
+      hourLabelText: 'Giờ',
+      minuteLabelText: 'Phút',
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+
+        return MediaQuery(
+          data: mediaQuery.copyWith(alwaysUse24HourFormat: true),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      final hour = picked.hour.toString().padLeft(2, '0');
+      final minute = picked.minute.toString().padLeft(2, '0');
+
+      setState(() {
+        _timeController.text = '$hour:$minute';
+      });
+    }
+  }
+
+  TimeOfDay _parseTime(String value) {
+    final parts = value.split(':');
+
+    if (parts.length != 2) {
+      return const TimeOfDay(hour: 8, minute: 0);
+    }
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return const TimeOfDay(hour: 8, minute: 0);
+    }
+
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -86,7 +141,7 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     final timeRegex = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$');
 
     if (!timeRegex.hasMatch(timeText)) {
-      _showMessage('Vui lòng nhập giờ đúng định dạng HH:mm, ví dụ 09:30.');
+      _showMessage('Vui lòng chọn thời gian thực hiện dịch vụ.');
       return;
     }
 
@@ -292,32 +347,13 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             SizedBox(height: 14.rw(context)),
 
             // TIME
-            TextFormField(
-              controller: _timeController,
-              keyboardType: TextInputType.datetime,
-              textInputAction: TextInputAction.next,
-              maxLength: 5,
-              decoration: const InputDecoration(
-                labelText: 'Thời gian',
-                hintText: '09:00',
-                prefixIcon: Icon(Icons.schedule_outlined),
-                counterText: '',
-              ),
-              validator: (value) {
-                final text = value?.trim() ?? '';
-
-                if (text.isEmpty) {
-                  return 'Vui lòng nhập thời gian';
-                }
-
-                final regex = RegExp(r'^([01]\d|2[0-3]):([0-5]\d)$');
-
-                if (!regex.hasMatch(text)) {
-                  return 'Nhập theo định dạng HH:mm';
-                }
-
-                return null;
-              },
+            _BookingSelector(
+              icon: Icons.schedule_outlined,
+              label: 'Thời gian',
+              value: _timeController.text.isEmpty
+                  ? 'Chọn thời gian'
+                  : _timeController.text,
+              onTap: _pickTime,
             ),
             SizedBox(height: 14.rw(context)),
 

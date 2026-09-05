@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'core/ui/app_theme.dart';
@@ -25,6 +26,9 @@ class SmartServiceApp extends StatelessWidget {
       title: 'Smart Service',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+
+      supportedLocales: const [Locale('vi', 'VN'), Locale('en', 'US')],
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
