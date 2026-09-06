@@ -6,6 +6,7 @@ import '../../core/ui/app_theme.dart';
 import '../../models/booking.dart';
 import '../../services/booking_service.dart';
 import 'review_screen.dart';
+import '../../core/ui/app_snackbar.dart';
 
 class BookingDetailScreen extends StatefulWidget {
   final int bookingId;
@@ -84,15 +85,11 @@ class _BookingDetailScreenState extends State<BookingDetailScreen> {
       await _loadBooking();
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Hủy đơn thành công.')));
+        AppSnackBar.show(context, 'Hủy đơn thành công.');
       }
     } on BookingException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
+        AppSnackBar.show(context, e.message);
       }
     } finally {
       if (mounted) {

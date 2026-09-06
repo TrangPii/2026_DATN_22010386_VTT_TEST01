@@ -355,21 +355,13 @@ class ServiceDetailScreen extends StatelessWidget {
               SizedBox(
                 width: 140.rw(context),
                 child: FilledButton(
-                  onPressed: () async {
-                    final created = await Navigator.push<bool>(
+                  onPressed: () {
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (_) => CreateBookingScreen(service: service),
                       ),
                     );
-
-                    if (created == true && context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Đặt dịch vụ thành công.'),
-                        ),
-                      );
-                    }
                   },
                   child: const Text('Đặt dịch vụ'),
                 ),

@@ -6,6 +6,8 @@ import '../../core/ui/app_theme.dart';
 import '../../models/provider_application.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/provider_application_service.dart';
+import '../../models/vietnam_address.dart';
+import '../../widgets/vietnam_address_picker.dart';
 
 class ProviderApplicationScreen extends StatefulWidget {
   final ProviderApplication? application;
@@ -27,11 +29,14 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
 
   late final TextEditingController _descriptionController;
 
-  late final TextEditingController _addressController;
-
   late final TextEditingController _identityNumberController;
 
   late final TextEditingController _experienceYearsController;
+
+  VietnamProvince? _selectedProvince;
+  VietnamWard? _selectedWard;
+
+  String? _addressPickerError;
 
   bool _isSubmitting = false;
 
@@ -49,10 +54,6 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
       text: application?.description ?? '',
     );
 
-    _addressController = TextEditingController(
-      text: application?.address ?? '',
-    );
-
     _identityNumberController = TextEditingController(
       text: application?.identityNumber ?? '',
     );
@@ -62,11 +63,28 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
     );
   }
 
+  Future<void> _pickAddress() async {
+    final result = await VietnamAddressPicker.show(
+      context: context,
+      initialProvinceCode: _selectedProvince?.code,
+      initialWardCode: _selectedWard?.code,
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedProvince = result.province;
+      _selectedWard = result.ward;
+      _addressPickerError = null;
+    });
+  }
+
   @override
   void dispose() {
     _businessNameController.dispose();
     _descriptionController.dispose();
-    _addressController.dispose();
     _identityNumberController.dispose();
     _experienceYearsController.dispose();
 
@@ -82,6 +100,22 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
       _experienceYearsController.text.trim(),
     );
 
+    final address =
+        '${_selectedProvince!.displayName}, '
+        '${_selectedWard!.name}';
+
+    if (_selectedProvince == null || _selectedWard == null) {
+      setState(() {
+        _addressPickerError = 'Vui lòng chọn tỉnh/thành phố và xã/phường.';
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn khu vực hoạt động.')),
+      );
+
+      return;
+    }
+
     if (experienceYears == null) {
       return;
     }
@@ -96,7 +130,7 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
 
         description: _descriptionController.text,
 
-        address: _addressController.text,
+        address: address,
 
         identityNumber: _identityNumberController.text,
 
@@ -292,26 +326,99 @@ class _ProviderApplicationScreenState extends State<ProviderApplicationScreen> {
 
                   SizedBox(height: 14.rw(context)),
 
-                  TextFormField(
-                    controller: _addressController,
-                    textInputAction: TextInputAction.next,
-                    maxLines: 2,
-                    decoration: const InputDecoration(
-                      labelText: 'Địa chỉ / Khu vực hoạt động',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                    ),
-                    validator: (value) {
-                      final text = value?.trim() ?? '';
-
-                      if (text.isEmpty) {
-                        return 'Vui lòng nhập địa chỉ.';
-                      }
-
-                      if (text.length > 255) {
-                        return 'Địa chỉ không được vượt quá 255 ký tự.';
+                  FormField<VietnamAddressSelection>(
+                    validator: (_) {
+                      if (_selectedProvince == null || _selectedWard == null) {
+                        return 'Vui lòng chọn tỉnh/thành phố và xã/phường.';
                       }
 
                       return null;
+                    },
+                    builder: (field) {
+                      final hasError = field.hasError;
+
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          InkWell(
+                            onTap: _pickAddress,
+                            borderRadius: BorderRadius.circular(14.rr(context)),
+                            child: Container(
+                              padding: EdgeInsets.all(15.rw(context)),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(
+                                  14.rr(context),
+                                ),
+                                border: Border.all(
+                                  color: hasError
+                                      ? Theme.of(context).colorScheme.error
+                                      : AppColors.border,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    color: AppColors.primary,
+                                  ),
+                                  SizedBox(width: 13.rw(context)),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Khu vực hoạt động',
+                                          style: TextStyle(
+                                            fontSize: 12.rf(context),
+                                            color: AppColors.textSecondary,
+                                          ),
+                                        ),
+                                        SizedBox(height: 4.rw(context)),
+                                        Text(
+                                          _selectedProvince == null ||
+                                                  _selectedWard == null
+                                              ? 'Chọn tỉnh/thành phố, xã/phường'
+                                              : '${_selectedProvince!.displayName} • '
+                                                    '${_selectedWard!.name}',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 15.rf(context),
+                                            fontWeight: FontWeight.w500,
+                                            color: _selectedProvince == null
+                                                ? AppColors.textSecondary
+                                                : null,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const Icon(
+                                    Icons.chevron_right_rounded,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                          if (hasError) ...[
+                            SizedBox(height: 6.rw(context)),
+                            Padding(
+                              padding: EdgeInsets.only(left: 16.rw(context)),
+                              child: Text(
+                                field.errorText!,
+                                style: TextStyle(
+                                  fontSize: 12.rf(context),
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
                     },
                   ),
 

@@ -7,6 +7,9 @@ import '../../core/ui/app_theme.dart';
 import '../../models/service.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/booking_service.dart';
+import '../../models/vietnam_address.dart';
+import '../../widgets/vietnam_address_picker.dart';
+import '../../core/ui/app_snackbar.dart';
 
 class CreateBookingScreen extends StatefulWidget {
   final Service service;
@@ -29,6 +32,10 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
   final BookingService _bookingService = BookingService();
 
   DateTime? _selectedDate;
+  VietnamProvince? _selectedProvince;
+  VietnamWard? _selectedWard;
+
+  String? _addressPickerError;
 
   int _quantity = 1;
   bool _isSubmitting = false;
@@ -126,6 +133,24 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
     return TimeOfDay(hour: hour, minute: minute);
   }
 
+  Future<void> _pickAddress() async {
+    final result = await VietnamAddressPicker.show(
+      context: context,
+      initialProvinceCode: _selectedProvince?.code,
+      initialWardCode: _selectedWard?.code,
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      _selectedProvince = result.province;
+      _selectedWard = result.ward;
+      _addressPickerError = null;
+    });
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -133,6 +158,16 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
 
     if (_selectedDate == null) {
       _showMessage('Vui lòng chọn ngày sử dụng dịch vụ.');
+      return;
+    }
+
+    if (_selectedProvince == null || _selectedWard == null) {
+      setState(() {
+        _addressPickerError = 'Vui lòng chọn tỉnh/thành phố và xã/phường.';
+      });
+
+      _showMessage('Vui lòng chọn khu vực thực hiện dịch vụ.');
+
       return;
     }
 
@@ -149,6 +184,11 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
       _isSubmitting = true;
     });
 
+    final serviceAddress =
+        '${_selectedProvince!.displayName}, '
+        '${_selectedWard!.name}, '
+        '${_addressController.text.trim()}';
+
     try {
       final booking = await _bookingService.createBooking(
         serviceId: widget.service.id,
@@ -157,16 +197,15 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
         quantity: _quantity,
         customerName: _nameController.text,
         customerPhone: _phoneController.text,
-        serviceAddress: _addressController.text,
+        serviceAddress: serviceAddress,
         note: _noteController.text,
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Đặt dịch vụ thành công: ${booking.bookingCode}'),
-        ),
+      AppSnackBar.show(
+        context,
+        'Đặt dịch vụ thành công: ${booking.bookingCode}',
       );
 
       Navigator.pop(context, true);
@@ -358,18 +397,60 @@ class _CreateBookingScreenState extends State<CreateBookingScreen> {
             SizedBox(height: 14.rw(context)),
 
             // ADDRESS
+            _BookingSelector(
+              icon: Icons.location_on_outlined,
+              label: 'Khu vực thực hiện',
+              value: _selectedProvince == null || _selectedWard == null
+                  ? 'Chọn tỉnh/thành phố, xã/phường'
+                  : '${_selectedProvince!.displayName} • '
+                        '${_selectedWard!.name}',
+              onTap: _pickAddress,
+            ),
+
+            if (_addressPickerError != null) ...[
+              Padding(
+                padding: EdgeInsets.only(
+                  left: 16.rw(context),
+                  top: 6.rw(context),
+                ),
+                child: Text(
+                  _addressPickerError!,
+                  style: TextStyle(
+                    fontSize: 12.rf(context),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+
+            SizedBox(height: 14.rw(context)),
+
             TextFormField(
               controller: _addressController,
               minLines: 1,
               maxLines: 2,
               decoration: const InputDecoration(
-                labelText: 'Địa chỉ thực hiện',
-                prefixIcon: Icon(Icons.location_on_outlined),
-                hintText: 'Nhập địa chỉ sử dụng dịch vụ',
+                labelText: 'Địa chỉ chi tiết',
+                prefixIcon: Icon(Icons.home_outlined),
+                hintText: 'Số nhà, đường, xóm, thôn...',
               ),
-              validator: (value) => value == null || value.trim().length < 5
-                  ? 'Vui lòng nhập địa chỉ'
-                  : null,
+              validator: (value) {
+                final text = value?.trim() ?? '';
+
+                if (text.isEmpty) {
+                  return 'Vui lòng nhập địa chỉ chi tiết';
+                }
+
+                if (text.length < 5) {
+                  return 'Địa chỉ chi tiết quá ngắn';
+                }
+
+                if (text.length > 255) {
+                  return 'Địa chỉ không được vượt quá 255 ký tự';
+                }
+
+                return null;
+              },
             ),
 
             SizedBox(height: 18.rw(context)),

@@ -5,6 +5,7 @@ import '../../core/ui/app_responsive.dart';
 import '../../core/ui/app_theme.dart';
 import '../../models/booking.dart';
 import '../../services/provider_booking_service.dart';
+import '../../core/ui/app_snackbar.dart';
 
 class ProviderBookingDetailScreen extends StatefulWidget {
   final int bookingId;
@@ -144,15 +145,11 @@ class _ProviderBookingDetailScreenState
         _booking = booking;
       });
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(successMessage)));
+      AppSnackBar.show(context, successMessage);
     } on ProviderBookingException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      AppSnackBar.show(context, e.message);
     } finally {
       if (mounted) {
         setState(() {
